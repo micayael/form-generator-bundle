@@ -1,0 +1,43 @@
+{
+    "name": "micayael/form-generator-bundle",
+    "type": "symfony-bundle",
+    "description": "Bundle para el generar formularios mediante yaml y json",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Juan Ardissone",
+            "email": "micayael@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^7.4.0|>=8.0",
+        "ext-json": "*",
+        "symfony/config": "^5.3",
+        "symfony/dependency-injection": "^5.3",
+        "symfony/twig-pack": "^1.0",
+        "symfony/form": "^5.4",
+        "symfony/yaml": "^5.4",
+        "symfony/validator": "^5.4"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Micayael\\Bundle\\FormGeneratorBundle\\": "src/"
+        }
+    },
+    "scripts": {
+        "auto-scripts": {
+            "symfony check:security": "script"
+        },
+        "post-install-cmd": [
+            "@auto-scripts"
+        ],
+        "post-update-cmd": [
+            "@auto-scripts"
+        ],
+        "check-cs": "php vendor/bin/php-cs-fixer fix --dry-run -vvv",
+        "fix-cs": "php vendor/bin/php-cs-fixer fix -vvv"
+    }
+}

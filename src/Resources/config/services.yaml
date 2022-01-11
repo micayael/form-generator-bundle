@@ -1,0 +1,12 @@
+services:
+
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    bind:
+      string $kernelProjectDir: '%kernel.project_dir%'
+      array $bundleConfig: '%micayael_form_generator_bundle_config%'
+
+  Micayael\Bundle\FormGeneratorBundle\Service\TestService: ~
+  Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator: ~
+  Micayael\Bundle\FormGeneratorBundle\Config\SupportedTypes: ~
