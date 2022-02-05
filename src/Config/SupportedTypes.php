@@ -29,71 +29,149 @@ class SupportedTypes
         // Texts
         'text' => [
             'class' => TextType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
         'textarea' => [
             'class' => TextareaType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
         'email' => [
             'class' => EmailType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                    'email' => []
+                ],
+            ],
         ],
         'password' => [
             'class' => PasswordType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
         'url' => [
             'class' => UrlType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                    'url' => [],
+                ],
+            ],
         ],
         'tel' => [
             'class' => TelType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
 
         // Numbers
         'integer' => [
             'class' => IntegerType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                    'type' => [
+                        'type' => 'integer',
+                    ],
+                ],
+            ],
         ],
         'money' => [
             'class' => MoneyType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                    'type' => [
+                        'type' => 'numeric',
+                    ],
+                ],
+            ],
         ],
         'number' => [
             'class' => NumberType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                    'type' => [
+                        'type' => 'numeric',
+                    ],
+                ],
+            ],
         ],
         'percent' => [
             'class' => PercentType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                    'type' => [
+                        'type' => 'numeric',
+                    ],
+                ],
+            ],
         ],
 
         // Choices
         'choice' => [
             'class' => ChoiceType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
         'country' => [
             'class' => CountryType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
         'language' => [
             'class' => LanguageType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
         'locale' => [
             'class' => LocaleType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
         'timezone' => [
             'class' => TimezoneType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
         'currency' => [
             'class' => CurrencyType::class,
-            'default_options' => [],
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
         ],
 
         // Dates
@@ -107,6 +185,12 @@ class SupportedTypes
 //                'attr' => [
 //                    'placeholder' => 'dd/mm/aaaa',
 //                ]
+                'constraints' => [
+                    'not_blank' => [],
+                    'date' => [
+                        'message' => 'chau'
+                    ],
+                ],
             ],
         ],
         'time' => [
@@ -115,6 +199,10 @@ class SupportedTypes
                 'input' => 'string',
                 'widget' => 'single_text',
                 'with_seconds' => false,
+                'constraints' => [
+                    'not_blank' => [],
+                    'time' => [],
+                ],
             ],
         ],
 
@@ -123,6 +211,12 @@ class SupportedTypes
             'class' => CheckboxType::class,
             'default_options' => [
                 'required' => false,
+                'constraints' => [
+                    'type' => [
+                        'type' => 'boolean',
+                        'message' => 'The value {{ value }} is not a valid {{ type }}.',
+                    ],
+                ],
             ],
         ],
     ];
