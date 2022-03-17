@@ -6,12 +6,10 @@ use Micayael\Bundle\FormGeneratorBundle\Config\SupportedTypes;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
-use Symfony\Component\String\UnicodeString;
 use Symfony\Component\Validator\Constraints\Date;
 use Symfony\Component\Validator\Constraints\Email;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
-use Symfony\Component\Validator\Constraints\NotNull;
 use Symfony\Component\Validator\Constraints\Url;
 use Symfony\Component\Yaml\Yaml;
 
@@ -47,7 +45,14 @@ class FormGenerator
             $inputType = isset($inputConfig['type']) ? $inputConfig['type'] : 'text';
 
             // Se obtiene la configuración predeterminada
-            $inputDefaultConfig = SupportedTypes::getDefaultTypeConfig($inputType);
+            if (class_exists($inputType)) {
+                $inputDefaultConfig = [
+                    'class' => $inputType,
+                    'default_options' => [],
+                ];
+            } else {
+                $inputDefaultConfig = SupportedTypes::getDefaultTypeConfig($inputType);
+            }
 
             // se obtienen las opciones definidas para este input
             $inputOptions = isset($inputConfig['options']) ? $inputConfig['options'] : [];
@@ -75,12 +80,11 @@ class FormGenerator
         $validations = array_merge($validations, isset($inputOptions['constraints']) ? $inputOptions['constraints'] : []);
 
         foreach ($validations as $validation => $validationOptions) {
-
-            switch ($validation){
+            switch ($validation) {
                 case 'not_blank':
-                    if(isset($inputOptions['required']) && false === $inputOptions['required']){
+                    if (isset($inputOptions['required']) && false === $inputOptions['required']) {
                         // no se setea la validación
-                    }else{
+                    } else {
                         $ret[] = new NotBlank($validationOptions);
                     }
                     break;
@@ -97,10 +101,8 @@ class FormGenerator
                     $ret[] = new Date($validationOptions);
                     break;
             }
-
         }
 
         return $ret;
-
     }
 }

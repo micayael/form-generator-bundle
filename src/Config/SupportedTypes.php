@@ -48,7 +48,7 @@ class SupportedTypes
             'default_options' => [
                 'constraints' => [
                     'not_blank' => [],
-                    'email' => []
+                    'email' => [],
                 ],
             ],
         ],
@@ -187,9 +187,7 @@ class SupportedTypes
 //                ]
                 'constraints' => [
                     'not_blank' => [],
-                    'date' => [
-                        'message' => 'chau'
-                    ],
+                    'date' => [],
                 ],
             ],
         ],

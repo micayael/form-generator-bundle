@@ -1,33 +1,155 @@
 micayael/form-generator-bundle
 ==============================
 
-Permite generar formularios de Symfony por medio de configuraciones YAML o JSON basadas
-en las configuraciones estándares del componente de fomularios del framework
+Introduction
+------------
 
-Ver documentación en: https://symfony.com/doc/current/reference/forms/types.html
+Allows you to generate Symfony forms using YAML, JSON or
+associative array configurations based on the standard
+configurations of the framework's forms component.
 
-Se toma como base el método public function FormInterface::add($child, string $type = null, array $options = []);
+See: https://symfony.com/doc/current/reference/forms/types.html
+
+It is based on the use of the add function of the form
+builder used to create forms with Symfony
+
+1. el name para el input de formulario
+2. el tipo de campo de formulario
+3. un array de options para configurar este tipo de campo
 
 ~~~php
+// FormInterface::add($child, string $type = null, array $options = [])
 $builder->add($inputName, $inputTypeClass, $inputOptions);
 ~~~
 
-Con esto es posible crear una configuración YAML en donde:
+With this it is possible to create a YAML configuration,
+JSON or an associative array in which:
 
-- el **key** del campo representa al $inputName
-- el **type** representa un $inputTypeClass de input soportado por este bundle que representa a un objeto Type de formulario. Ver clase Micayael\Bundle\FormGeneratorBundle\Config\SupportedTypes.php
-- el array **options** representa a los $inputOptions del formulario
+- the **key** represents the $inputName
+- **type** represents a form $inputTypeClass supported by the
+- bundle or the "fully qualified class name (FQN)" of a class form type
+- the **options** array represents the form $inputOptions
+
+This allows you to configure forms dynamically by using yaml, json or
+an associative array like the examples below:
+
+### YAML
 
 ~~~yaml
-fecha_vencimiento: null
-fecha_emision:
-    type: date
-    options:
-        label: 'Fecha de Emisión'
-estado:
-    type: choice
-    options:
-        choices:
-            Activo: ACTIVO
-            Inactivo: INACTIVO
+name:
+birthday:
+  type: date
+  options:
+    label: 'Your Birthday'
+status:
+  type: choice
+  options:
+    choices:
+      Active: A
+      Inactive: I
+custom_type:
+  type: App\Form\Type\CustomType
+  options:
+    custom_option: value
 ~~~
+
+### JSON
+
+~~~json
+{
+  "name": null,
+  "birthday": {
+    "type": "date",
+    "options": {
+      "label": "Your Birthday"
+    }
+  },
+  "status": {
+    "type": "choice",
+    "options": {
+      "choices": {
+        "Active": "A",
+        "Inactive": "I"
+      }
+    }
+  },
+  "custom_type": {
+    "type": "App\\Form\\Type\\CustomType",
+    "options": {
+      "custom_option": "value"
+    }
+  }
+}
+~~~
+
+### PHP
+
+~~~php
+$formConfig = [
+  'name' => NULL,
+  'birthday' => [
+    'type' => 'date',
+    'options' => [
+      'label' => 'Your Birthday',
+    ],
+  ],
+  'status' => [
+    'type' => 'choice',
+    'options' => [
+      'choices' => [
+        'Active' => 'A',
+        'Inactive' => 'I',
+      ],
+    ],
+  ],
+  'custom_type' => [
+    'type' => 'App\\Form\\Type\\CustomType',
+    'options' => [
+      'custom_option' => 'value',
+    ],
+  ],
+]
+~~~
+
+Installation
+------------
+
+~~~
+composer install micayael/form-generator-bundle
+~~~
+
+Usage
+-----
+
+Where it is necessary to create a form, for example a controller or
+a service, you must inject the FormGenerator object provided by
+the bundle.
+
+~~~php
+class HomeController extends AbstractController
+{
+    /** @required */
+    public FormGenerator $formGenerator;
+
+    public function __invoke(Request $request): Response
+    {
+        $formConfigArray = []; // configuration as associative array
+
+        // Gets a FormInterface object with the configured form
+        $form = $this->formGenerator->createForm($formConfigArray);
+
+        $form->handleRequest($request);
+
+        if($form->isSubmitted() && $form->isValid()){
+            $formData = $form->getData();
+
+            // process your form
+        }
+    }
+~~~
+
+The FormGenerator service provides the following methods:
+
+1. **FormGenerator::createForm(array $formConfig, array $formOptions = [], $data = null):** Creates a form from an associative array
+2. **FormGenerator::createFormFromJson(string $formConfigJson, array $formOptions = [], $data = null):** Creates a form from a json string
+3. **FormGenerator::createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null):** Creates a form from a yaml string
