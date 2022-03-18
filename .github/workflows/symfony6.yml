@@ -36,7 +36,7 @@ jobs:
 #      - name: Security check installed dependencies
 #        uses: symfonycorp/security-checker-action@v2
 
-#      - name: Run test suite
-#        env:
-#          SYMFONY_DEPRECATIONS_HELPER: disabled
-#        run: ./vendor/bin/phpunit
+      - name: Run test suite
+        env:
+          SYMFONY_DEPRECATIONS_HELPER: disabled
+        run: ./vendor/bin/phpunit
