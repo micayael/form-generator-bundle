@@ -1,6 +1,8 @@
 /vendor/
 /composer.lock
 /.idea/
+/.phpunit.result.cache
+/var/
 
 ###> friendsofphp/php-cs-fixer ###
 /.php-cs-fixer.php

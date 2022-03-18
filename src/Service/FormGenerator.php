@@ -15,8 +15,13 @@ use Symfony\Component\Yaml\Yaml;
 
 class FormGenerator
 {
-    /** @required */
-    public FormFactoryInterface $formFactory;
+    /** @var FormFactoryInterface */
+    public $formFactory;
+
+    public function __construct(FormFactoryInterface $formFactory)
+    {
+        $this->formFactory = $formFactory;
+    }
 
     public function createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null): ?FormInterface
     {

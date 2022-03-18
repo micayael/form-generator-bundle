@@ -11,14 +11,6 @@ class Configuration implements ConfigurationInterface
     {
         $treeBuilder = new TreeBuilder('micayael_form_generator');
 
-        $rootNode = $treeBuilder->getRootNode();
-
-        $rootNode
-            ->addDefaultsIfNotSet()
-            ->children()
-            ->end()
-        ->end();
-
         return $treeBuilder;
     }
 }

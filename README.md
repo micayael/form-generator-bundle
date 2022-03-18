@@ -1,6 +1,9 @@
 micayael/form-generator-bundle
 ==============================
 
+[![Symfony 5](https://github.com/micayael/form-generator-bundle/actions/workflows/symfony5.yml/badge.svg)](https://github.com/micayael/form-generator-bundle/actions/workflows/symfony5.yml)
+[![Symfony 6](https://github.com/micayael/form-generator-bundle/actions/workflows/symfony6.yml/badge.svg)](https://github.com/micayael/form-generator-bundle/actions/workflows/symfony6.yml)
+
 Introduction
 ------------
 
@@ -153,3 +156,32 @@ The FormGenerator service provides the following methods:
 1. **FormGenerator::createForm(array $formConfig, array $formOptions = [], $data = null):** Creates a form from an associative array
 2. **FormGenerator::createFormFromJson(string $formConfigJson, array $formOptions = [], $data = null):** Creates a form from a json string
 3. **FormGenerator::createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null):** Creates a form from a yaml string
+
+Development
+-----------
+
+### Install dependencies
+
+~~~
+composer install
+~~~
+
+### Testing
+
+~~~
+vendor/bin/phpunit
+~~~
+
+### Code Review
+
+* phpstan levels: https://phpstan.org/user-guide/rule-levels
+
+~~~
+vendor/bin/phpstan analyse src tests --level 5
+~~~
+
+* phpmd: https://phpmd.org/download/index.html
+
+~~~
+vendor/bin/phpmd ./ text .phpmd-ruleset.xml --exclude var,vendor
+~~~
