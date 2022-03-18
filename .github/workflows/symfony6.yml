@@ -1,0 +1,42 @@
+name: Symfony 6
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  symfony-tests:
+    runs-on: ${{ matrix.operating-system }}
+    name: PHP ${{ matrix.php }} and Symfony ${{ matrix.symfony }} on ${{ matrix.operating-system }}
+    strategy:
+      fail-fast: true
+      matrix:
+        operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
+        php: [ '8.1' ]
+        symfony: [ '6.0.*' ]
+
+    steps:
+      - uses: actions/checkout@master
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: flex
+
+      - name: Download dependencies
+        env:
+          SYMFONY_REQUIRE: ${{ matrix.symfony }}
+        uses: ramsey/composer-install@v1
+        with:
+          composer-options: "--no-progress --prefer-dist --optimize-autoloader"
+
+#      - name: Security check installed dependencies
+#        uses: symfonycorp/security-checker-action@v2
+
+#      - name: Run test suite
+#        env:
+#          SYMFONY_DEPRECATIONS_HELPER: disabled
+#        run: ./vendor/bin/phpunit
