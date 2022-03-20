@@ -13,8 +13,8 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
-        php: [ '7.4' ]
+        operating-system: [ ubuntu-latest ]
+        php: [ '7.4', '8.0' ]
         symfony: [ '5.4.*' ]
 
     steps:
