@@ -33,8 +33,12 @@ jobs:
         with:
           composer-options: "--no-progress --prefer-dist --optimize-autoloader"
 
-      - name: Security check installed dependencies
-        uses: symfonycorp/security-checker-action@v2
+      - uses: symfonycorp/security-checker-action@v2
+        with:
+          disable-exit-code: 1
+        id: security-check
+      - name: Display the vulnerabilities as JSON
+        run: echo ${{ steps.security-check.outputs.vulns }}
 
       - name: Run test suite
         env:
