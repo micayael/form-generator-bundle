@@ -46,12 +46,13 @@ jobs:
           composer-options: "--no-progress --prefer-dist --optimize-autoloader"
 
       - name: Test symfony security
-        uses: symfonycorp/security-checker-action@v2
         if: runner.os == 'Linux'
+        uses: symfonycorp/security-checker-action@v2
         with:
           disable-exit-code: 1
         id: security-check
       - name: Display the vulnerabilities as JSON
+        if: runner.os == 'Linux'
         run: echo ${{ steps.security-check.outputs.vulns }}
 
       - name: Run test suite
