@@ -1,4 +1,4 @@
-name: Symfony test
+name: Symfony 5
 
 on:
   push:
@@ -14,8 +14,8 @@ jobs:
       fail-fast: true
       matrix:
         operating-system: [ ubuntu-latest ]
-        php: [ '7.4', '8.0', '8.1' ]
-        symfony: [ '5.0.*' ]
+        php: [ '7.4' ]
+        symfony: [ '5.4.*' ]
 
     steps:
       - uses: actions/checkout@master
@@ -33,8 +33,8 @@ jobs:
         with:
           composer-options: "--no-progress --prefer-dist --optimize-autoloader"
 
-#      - name: Security check installed dependencies
-#        uses: symfonycorp/security-checker-action@v2
+      - name: Security check installed dependencies
+        uses: symfonycorp/security-checker-action@v2
 
       - name: Run test suite
         env:
