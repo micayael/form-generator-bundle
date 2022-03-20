@@ -26,6 +26,18 @@ jobs:
           php-version: ${{ matrix.php }}
           tools: flex
 
+      - name: Composer get cache directory
+        id: composer-cache
+        run: |
+          echo "::set-output name=dir::$(composer config cache-files-dir)"
+      - name: Composer cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
       - name: Download dependencies
         env:
           SYMFONY_REQUIRE: ${{ matrix.symfony }}
@@ -33,7 +45,8 @@ jobs:
         with:
           composer-options: "--no-progress --prefer-dist --optimize-autoloader"
 
-      - uses: symfonycorp/security-checker-action@v2
+      - name: Test symfony security
+        uses: symfonycorp/security-checker-action@v2
         if: runner.os == 'Linux'
 
       - name: Run test suite
