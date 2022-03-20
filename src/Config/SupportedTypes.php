@@ -178,7 +178,6 @@ class SupportedTypes
         'date' => [
             'class' => DateType::class,
             'default_options' => [
-//                'html5' => false,
                 'input' => 'string',
                 'widget' => 'single_text',
 //                'format' => 'dd/MM/yyyy',
