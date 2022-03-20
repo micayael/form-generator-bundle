@@ -48,6 +48,11 @@ jobs:
       - name: Test symfony security
         uses: symfonycorp/security-checker-action@v2
         if: runner.os == 'Linux'
+        with:
+          disable-exit-code: 1
+        id: security-check
+      - name: Display the vulnerabilities as JSON
+        run: echo ${{ steps.security-check.outputs.vulns }}
 
       - name: Run test suite
         env:
