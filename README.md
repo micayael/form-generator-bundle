@@ -159,9 +159,17 @@ class HomeController extends AbstractController
 
 The FormGenerator service provides the following methods:
 
-1. **FormGenerator::createForm(array $formConfig, array $formOptions = [], $data = null):** Creates a form from an associative array
-2. **FormGenerator::createFormFromJson(string $formConfigJson, array $formOptions = [], $data = null):** Creates a form from a json string
-3. **FormGenerator::createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null):** Creates a form from a yaml string
+1. **FormGenerator::createForm(array $formConfig, array $formOptions = [], $data = null, string $baseFormTypeClass = null, string $groupName = null):** Creates a form from an associative array
+2. **FormGenerator::createFormFromJson(string $formConfigJson, array $formOptions = [], $data = null, string $baseFormTypeClass = null, string $groupName = null):** Creates a form from a json string
+3. **FormGenerator::createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null, string $baseFormTypeClass = null, string $groupName = null):** Creates a form from a yaml string
+
+### Method arguments
+
+1. **array $formConfig:** form configuration
+2. **array $formOptions = []:** custom form options
+3. **$data = null:** form data
+4. **string $baseFormTypeClass = null:** Form class (FQN) that will be used as the base to add the other fields. If not passed, they are added to an empty form.
+5. **string $groupName = null:** name that will be used to group the fields created by the $formConfig argument as an embeded form
 
 Development
 -----------

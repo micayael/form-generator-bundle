@@ -3,6 +3,7 @@
 namespace Micayael\Bundle\FormGeneratorBundle\Tests;
 
 use Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator;
+use Micayael\Bundle\FormGeneratorBundle\Tests\Form\Type\FixedFieldsType;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Yaml\Yaml;
@@ -91,6 +92,56 @@ class FormGeneratorTest extends TestCase
         $this->assertEquals($this->expectedData, $form->getData());
     }
 
+    public function testFormWithBaseFormClass()
+    {
+        $formConfigArray = $this->getFormConfigAsArray();
+
+        $fixedFields = [
+            'fixed1',
+            'fixed2',
+        ];
+
+        $form = $this->formGeneratorService->createForm($formConfigArray, [], null, FixedFieldsType::class);
+
+        $form->submit($this->originalData);
+
+        $this->assertInstanceOf(FormInterface::class, $form);
+
+        foreach ($formConfigArray as $typeName => $type) {
+            $this->assertTrue($form->has($typeName));
+        }
+
+        foreach ($fixedFields as $fieldName) {
+            $this->assertTrue($form->has($fieldName));
+        }
+    }
+
+    public function testFormWithBaseFormClassAndGroupName()
+    {
+        $formConfigArray = $this->getFormConfigAsArray();
+
+        $fixedFields = [
+            'fixed1',
+            'fixed2',
+        ];
+
+        $form = $this->formGeneratorService->createForm($formConfigArray, [], null, FixedFieldsType::class, 'extra_fields');
+
+        $form->submit($this->originalData);
+
+        $this->assertInstanceOf(FormInterface::class, $form);
+
+        $this->assertTrue($form->has('extra_fields'));
+
+        foreach ($formConfigArray as $typeName => $type) {
+            $this->assertTrue($form->get('extra_fields')->has($typeName));
+        }
+
+        foreach ($fixedFields as $fieldName) {
+            $this->assertTrue($form->has($fieldName));
+        }
+    }
+
     private function getFormConfigAsYaml(): string
     {
         $ret = 'name:
@@ -105,7 +156,7 @@ status:
       Active: A
       Inactive: I
 custom_type:
-  type: Micayael\Bundle\FormGeneratorBundle\Tests\DemoFormType
+  type: Micayael\Bundle\FormGeneratorBundle\Tests\Form\Type\DemoFormType
   options:
     custom_option: value';
 

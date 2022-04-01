@@ -23,28 +23,34 @@ class FormGenerator
         $this->formFactory = $formFactory;
     }
 
-    public function createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null): ?FormInterface
+    public function createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null, string $baseFormTypeClass = null, string $groupName = null): ?FormInterface
     {
         $array = Yaml::parse($formConfigYaml);
         $json = json_encode($array);
 
-        return $this->createFormFromJson($json, $formOptions, $data);
+        return $this->createFormFromJson($json, $formOptions, $data, $baseFormTypeClass, $groupName);
     }
 
-    public function createFormFromJson(string $formConfigJson, array $formOptions = [], $data = null): ?FormInterface
+    public function createFormFromJson(string $formConfigJson, array $formOptions = [], $data = null, string $baseFormTypeClass = null, string $groupName = null): ?FormInterface
     {
         $formConfig = json_decode($formConfigJson, true);
 
-        return $this->createForm($formConfig, $formOptions, $data);
+        return $this->createForm($formConfig, $formOptions, $data, $baseFormTypeClass, $groupName);
     }
 
-    public function createForm(array $formConfig, array $formOptions = [], $data = null): ?FormInterface
+    public function createForm(array $formConfig, array $formOptions = [], $data = null, string $baseFormTypeClass = null, string $groupName = null): ?FormInterface
     {
         if (empty($formConfig)) {
             return null;
         }
 
-        $form = $this->formFactory->create(FormType::class, $data, $formOptions);
+        $baseFormTypeClass = $baseFormTypeClass ?: FormType::class;
+
+        $form = $this->formFactory->create($baseFormTypeClass, $data, $formOptions);
+
+        if ($groupName) {
+            $form->add($groupName, FormType::class);
+        }
 
         foreach ($formConfig as $inputName => $inputConfig) {
             $inputType = isset($inputConfig['type']) ? $inputConfig['type'] : 'text';
@@ -71,7 +77,11 @@ class FormGenerator
             );
 
             // Se crea el input de formulario
-            $form->add($inputName, $inputDefaultConfig['class'], $inputOptions);
+            if ($groupName) {
+                $form->get($groupName)->add($inputName, $inputDefaultConfig['class'], $inputOptions);
+            } else {
+                $form->add($inputName, $inputDefaultConfig['class'], $inputOptions);
+            }
         }
 
         return $form;
