@@ -124,7 +124,7 @@ Installation
 ------------
 
 ~~~
-composer install micayael/form-generator-bundle
+composer require micayael/form-generator-bundle
 ~~~
 
 Usage

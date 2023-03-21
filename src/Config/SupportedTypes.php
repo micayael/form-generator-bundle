@@ -216,6 +216,22 @@ class SupportedTypes
                 ],
             ],
         ],
+        'boolean_choice' => [
+            'class' => ChoiceType::class,
+            'default_options' => [
+                'required' => false,
+                'choices' => [
+                    true => 'Si',
+                    false => 'No',
+                ],
+                'constraints' => [
+                    'type' => [
+                        'type' => 'boolean',
+                        'message' => 'The value {{ value }} is not a valid {{ type }}.',
+                    ],
+                ],
+            ],
+        ],
     ];
 
     public static function getDefaultTypeConfig(string $inputType): array
