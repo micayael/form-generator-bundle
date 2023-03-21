@@ -221,8 +221,8 @@ class SupportedTypes
             'default_options' => [
                 'required' => false,
                 'choices' => [
-                    true => 'Si',
-                    false => 'No',
+                    'Si' => true,
+                    'No' => false,
                 ],
                 'constraints' => [
                     'type' => [
