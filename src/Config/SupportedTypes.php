@@ -22,6 +22,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\TimeType;
 use Symfony\Component\Form\Extension\Core\Type\TimezoneType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
+use Symfony\Component\Form\Extension\Core\Type\UuidType;
 
 class SupportedTypes
 {
@@ -71,6 +72,14 @@ class SupportedTypes
         ],
         'tel' => [
             'class' => TelType::class,
+            'default_options' => [
+                'constraints' => [
+                    'not_blank' => [],
+                ],
+            ],
+        ],
+        'uuid' => [
+            'class' => UuidType::class,
             'default_options' => [
                 'constraints' => [
                     'not_blank' => [],
