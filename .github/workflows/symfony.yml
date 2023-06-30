@@ -26,6 +26,7 @@ jobs:
         symfony: [ '6.0.*', '6.1.*', '6.2.*', '6.3.*' ]
 
     steps:
+
     #  To automatically get bug fixes and new Php versions for shivammathur/setup-php,
     # change this to (see https://github.com/shivammathur/setup-php#bookmark-versioning):
     # name: Setup PHP ${{ matrix.php }}uses: shivammathur/setup-php@v2
@@ -53,6 +54,17 @@ jobs:
       uses: ramsey/composer-install@v1
       with:
         composer-options: "--no-progress --prefer-dist --optimize-autoloader"
+
+    - name: Test symfony security
+      if: runner.os == 'Linux'
+      uses: symfonycorp/security-checker-action@v4
+      with:
+        disable-exit-code: 1
+      id: security-check
+
+    - name: Display the vulnerabilities as JSON
+      if: runner.os == 'Linux'
+      run: echo ${{ steps.security-check.outputs.vulns }}
 
     - name: Run test suite
       env:
