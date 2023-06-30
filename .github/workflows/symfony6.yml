@@ -1,62 +1,70 @@
-#name: Symfony 6
-#
-#on:
-#  push:
-#    branches: [ master ]
-#  pull_request:
-#    branches: [ master ]
-#
-#jobs:
-#  symfony-tests:
-#    runs-on: ${{ matrix.operating-system }}
-#    name: PHP ${{ matrix.php }} and Symfony ${{ matrix.symfony }} on ${{ matrix.operating-system }}
-#    strategy:
-#      fail-fast: true
-#      matrix:
-#        operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
-#        php: [ '8.1' ]
-#        symfony: [ '6.0.*' ]
-#
-#    steps:
-#      - uses: actions/checkout@master
-#
-#      - name: Setup PHP ${{ matrix.php }}
-#        uses: shivammathur/setup-php@2cb9b829437ee246e9b3cac53555a39208ca6d28
-#        with:
-#          php-version: ${{ matrix.php }}
-#          tools: flex
-#
-#      - name: Composer get cache directory
-#        id: composer-cache
-#        run: |
-#          echo "::set-output name=dir::$(composer config cache-files-dir)"
-#
-#      - name: Composer cache
-#        uses: actions/cache@v3
-#        with:
-#          path: ${{ steps.composer-cache.outputs.dir }}
-#          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-#          restore-keys: |
-#            ${{ runner.os }}-composer-
-#
-#      - name: Download dependencies
-#        env:
-#          SYMFONY_REQUIRE: ${{ matrix.symfony }}
-#        uses: ramsey/composer-install@v1
-#        with:
-#          composer-options: "--no-progress --prefer-dist --optimize-autoloader"
-#
-#      - name: Test symfony security
-#        if: runner.os == 'Linux'
-#        uses: symfonycorp/security-checker-action@v2
-#        with:
-#          disable-exit-code: 1
-#        id: security-check
-#      - name: Display the vulnerabilities as JSON
-#        if: runner.os == 'Linux'
-#        run: echo ${{ steps.security-check.outputs.vulns }}
-#
-#      - name: Run test suite
-#        env:
-#          SYMFONY_DEPRECATIONS_HELPER: disabled
-#        run: ./vendor/bin/phpunit
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Symfony
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  symfony-tests:
+    runs-on: ${{ matrix.operating-system }}
+    name: PHP ${{ matrix.php }} and Symfony ${{ matrix.symfony }} on ${{ matrix.operating-system }}
+    strategy:
+      fail-fast: true
+      matrix:
+        operating-system: [ ubuntu-latest ]
+        php: [ '8.1', '8.2' ]
+        symfony: [ '6.0.*', '6.1.*', '6.2.*', '6.3.*' ]
+
+    steps:
+
+      #  To automatically get bug fixes and new Php versions for shivammathur/setup-php,
+      # change this to (see https://github.com/shivammathur/setup-php#bookmark-versioning):
+      # name: Setup PHP ${{ matrix.php }}uses: shivammathur/setup-php@v2
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@2cb9b829437ee246e9b3cac53555a39208ca6d28
+        with:
+          php-version: ${{ matrix.php }}
+          tools: flex
+
+      - uses: actions/checkout@v3
+
+      - name: Cache Composer packages
+        id: composer-cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install Dependencies
+        env:
+          SYMFONY_REQUIRE: ${{ matrix.symfony }}
+        uses: ramsey/composer-install@v1
+        with:
+          composer-options: "--no-progress --prefer-dist --optimize-autoloader"
+
+      - name: Test symfony security
+        if: runner.os == 'Linux'
+        uses: symfonycorp/security-checker-action@v4
+        with:
+          disable-exit-code: 1
+        id: security-check
+      - name: Display the vulnerabilities as JSON
+        if: runner.os == 'Linux'
+        run: echo ${{ steps.security-check.outputs.vulns }}
+
+      - name: Run test suite
+        env:
+          SYMFONY_DEPRECATIONS_HELPER: disabled
+        run: vendor/bin/phpunit
