@@ -16,32 +16,45 @@ permissions:
 
 jobs:
   symfony-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.operating-system }}
+    name: PHP ${{ matrix.php }} and Symfony ${{ matrix.symfony }} on ${{ matrix.operating-system }}
+    strategy:
+      fail-fast: true
+      matrix:
+        operating-system: [ ubuntu-latest, windows-latest, macos-latest ]
+        php: [ '8.1' ]
+        symfony: [ '6.0.*' ]
+
     steps:
     #  To automatically get bug fixes and new Php versions for shivammathur/setup-php,
     # change this to (see https://github.com/shivammathur/setup-php#bookmark-versioning):
-    # uses: shivammathur/setup-php@v2
-    - uses: shivammathur/setup-php@2cb9b829437ee246e9b3cac53555a39208ca6d28
+    # name: Setup PHP ${{ matrix.php }}uses: shivammathur/setup-php@v2
+    - name: Setup PHP ${{ matrix.php }}
+      uses: shivammathur/setup-php@2cb9b829437ee246e9b3cac53555a39208ca6d28
       with:
-        php-version: '8.0'
+        php-version: ${{ matrix.php }}
+        tools: flex
+
     - uses: actions/checkout@v3
-    - name: Copy .env.test.local
-      run: php -r "file_exists('.env.test.local') || copy('.env.test', '.env.test.local');"
+
     - name: Cache Composer packages
       id: composer-cache
       uses: actions/cache@v3
       with:
         path: vendor
-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
         restore-keys: |
-          ${{ runner.os }}-php-
+          ${{ runner.os }}-composer-
+
     - name: Install Dependencies
-      run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
-    - name: Create Database
-      run: |
-        mkdir -p data
-        touch data/database.sqlite
-    - name: Execute tests (Unit and Feature tests) via PHPUnit
       env:
-        DATABASE_URL: sqlite:///%kernel.project_dir%/data/database.sqlite
+        SYMFONY_REQUIRE: ${{ matrix.symfony }}
+#      run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+      uses: ramsey/composer-install@v1
+      with:
+        composer-options: "--no-progress --prefer-dist --optimize-autoloader"
+
+    - name: Run test suite
+      env:
+        SYMFONY_DEPRECATIONS_HELPER: disabled
       run: vendor/bin/phpunit
