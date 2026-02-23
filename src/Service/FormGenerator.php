@@ -6,6 +6,7 @@ use Micayael\Bundle\FormGeneratorBundle\Config\SupportedTypes;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\String\Slugger\AsciiSlugger;
 use Symfony\Component\Validator\Constraints\Date;
 use Symfony\Component\Validator\Constraints\Email;
 use Symfony\Component\Validator\Constraints\Length;
@@ -80,7 +81,20 @@ class FormGenerator
             if ($groupName) {
                 $form->get($groupName)->add($inputName, $inputDefaultConfig['class'], $inputOptions);
             } else {
-                $form->add($inputName, $inputDefaultConfig['class'], $inputOptions);
+                $group = $inputConfig['extras']['group'] ?? 'default';
+                $position = $inputConfig['extras']['position'] ?? 'default';
+
+                $slugger = new AsciiSlugger();
+                $groupKey = strtolower($slugger->slug($group.'_'.$position, '_'));
+
+                if(!$form->has($groupKey)){
+                    $form->add($groupKey, FormType::class, [
+                        'label' => $group === 'default' ? false : $group . sprintf(' (%s)', $groupKey),
+                        'mapped' => false,
+                    ]);
+                }
+
+                $form->get($groupKey)->add($inputName, $inputDefaultConfig['class'], $inputOptions);
             }
         }
 

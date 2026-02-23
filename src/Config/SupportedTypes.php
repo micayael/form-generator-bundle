@@ -7,6 +7,7 @@ use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CountryType;
 use Symfony\Component\Form\Extension\Core\Type\CurrencyType;
+use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -189,10 +190,6 @@ class SupportedTypes
             'default_options' => [
                 'input' => 'string',
                 'widget' => 'single_text',
-//                'format' => 'dd/MM/yyyy',
-//                'attr' => [
-//                    'placeholder' => 'dd/mm/aaaa',
-//                ]
                 'constraints' => [
                     'not_blank' => [],
                     'date' => [],
@@ -208,6 +205,18 @@ class SupportedTypes
                 'constraints' => [
                     'not_blank' => [],
                     'time' => [],
+                ],
+            ],
+        ],
+        'datetime' => [
+            'class' => DateTimeType::class,
+            'default_options' => [
+                'input' => 'string',
+                'widget' => 'single_text',
+                'with_seconds' => false,
+                'constraints' => [
+                    'not_blank' => [],
+                    'datetime' => [],
                 ],
             ],
         ],
@@ -250,5 +259,14 @@ class SupportedTypes
         }
 
         return self::SUPPORTED_TYPES[$inputType];
+    }
+
+    public static function getSupportedClass(string $inputType): ?string
+    {
+        if(!isset(self::SUPPORTED_TYPES[$inputType])){
+            return $inputType;
+        }else{
+            return self::SUPPORTED_TYPES[$inputType]['class'];
+        }
     }
 }
