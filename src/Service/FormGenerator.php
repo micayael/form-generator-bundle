@@ -55,6 +55,7 @@ class FormGenerator
 
         foreach ($formConfig as $inputName => $inputConfig) {
             $inputType = isset($inputConfig['type']) ? $inputConfig['type'] : 'text';
+            $inputType = SupportedTypes::getSupportedClass($inputType);
 
             // Se obtiene la configuración predeterminada
             if (class_exists($inputType)) {
