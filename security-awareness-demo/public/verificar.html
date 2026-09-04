@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Comprobacion — Taller de seguridad</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<main class="screen">
+  <form class="card reveal" id="verify-form" autocomplete="off" novalidate>
+    <h1>Comprobalo vos mismo</h1>
+
+    <p class="lead">Escribi la contrasena que usaste cuando entraste al sitio
+       falso. Se va a comparar contra la huella de 16 bits que quedo guardada
+       ese dia.</p>
+
+    <p class="ask">Igual que en el sitio falso, tu contrasena
+       <strong>no se envia a ningun lado</strong>: el calculo pasa en este
+       navegador y solo viajan 4 caracteres hexadecimales. Podes abrir la
+       pestana Red de las herramientas de desarrollo y comprobarlo.</p>
+
+    <div id="result" hidden></div>
+
+    <label for="email">Tu correo corporativo</label>
+    <input type="email" id="email" required autocomplete="off" spellcheck="false">
+
+    <label for="password">La contrasena que escribiste ese dia</label>
+    <input type="password" id="password" required autocomplete="off">
+
+    <p class="error" id="error" hidden></p>
+
+    <button type="submit" id="submit">Comparar</button>
+  </form>
+</main>
+
+<script type="module" src="verificar.js"></script>
+</body>
+</html>

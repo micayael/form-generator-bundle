@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Portal Corporativo — Iniciar sesion</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<main id="screen-login" class="screen">
+  <form class="card" id="login-form" autocomplete="off" novalidate>
+    <div class="brand" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="32" height="32"><rect x="2" y="2" width="13" height="13" rx="2"/><rect x="17" y="2" width="13" height="13" rx="2"/><rect x="2" y="17" width="13" height="13" rx="2"/><rect x="17" y="17" width="13" height="13" rx="2"/></svg>
+      <span>Portal Corporativo</span>
+    </div>
+
+    <h1>Iniciar sesion</h1>
+    <p class="notice">Tu sesion expiro. Volve a validar tus credenciales para
+       continuar accediendo a tu correo.</p>
+
+    <label for="email">Correo corporativo</label>
+    <input type="email" id="email" name="email" required
+           autocomplete="off" spellcheck="false" placeholder="nombre@empresa.com">
+
+    <label for="password">Contrasena</label>
+    <input type="password" id="password" name="password" required
+           autocomplete="off">
+
+    <p class="error" id="error" hidden></p>
+
+    <button type="submit" id="submit">Iniciar sesion</button>
+
+    <p class="foot">Al continuar aceptas las politicas de uso aceptable.</p>
+  </form>
+</main>
+
+<main id="screen-result" class="screen" hidden>
+  <div class="card reveal">
+    <div class="stop" aria-hidden="true">!</div>
+    <h1>Esto era una simulacion de seguridad</h1>
+
+    <p class="lead">Acabas de escribir tu contrasena corporativa en un sitio que
+       <strong>no pertenece a la empresa</strong>. Si esto hubiera sido un ataque
+       real, tu cuenta ya estaria comprometida.</p>
+
+    <div class="proof">
+      <p class="proof-label">Prueba de que capturamos algo</p>
+      <p class="proof-value">Huella de tu contrasena: <code id="prefix">····</code></p>
+      <p class="proof-note">Guardamos <strong>unicamente</strong> estos 16 bits.
+        Tu contrasena nunca salio de este navegador: se calculo aca y se envio
+        solo esta huella. Es matematicamente imposible reconstruir tu contrasena
+        a partir de ella — 1 de cada 65.536 contrasenas produce la misma huella.
+        En el taller vas a poder comprobar vos mismo que coincide con la tuya.</p>
+    </div>
+
+    <h2>Que deberias haber notado</h2>
+    <ul class="flags">
+      <li><strong>La direccion del sitio.</strong> Mira la barra del navegador
+          ahora: <code id="host"></code>. No es el dominio de la empresa.
+          Este es el control que nunca falla — comprobalo <em>antes</em> de tipear.</li>
+      <li><strong>Nadie te pide re-validar por correo.</strong> Un mensaje que
+          dice que tu sesion expiro y te manda a un enlace es una tactica clasica.</li>
+      <li><strong>La urgencia.</strong> El apuro existe para que no pienses.</li>
+      <li><strong>El gestor de contrasenas no autocompleto.</strong> Si usas uno,
+          su silencio es una alarma: el reconoce el dominio, tus ojos no.</li>
+    </ul>
+
+    <p class="ask">Te pedimos un favor: <strong>no le cuentes a tus companeros</strong>
+       hasta el taller. La sorpresa es parte del ejercicio.</p>
+
+    <p class="foot">Ejercicio interno de concientizacion. No se registro tu
+       contrasena, ni en texto plano ni en forma recuperable.</p>
+  </div>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
