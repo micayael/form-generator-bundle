@@ -15,7 +15,11 @@ Hace:
 
 - Presenta una pantalla de inicio de sesion corporativa creible.
 - Detecta quien escribio sus credenciales y quien no.
-- Muestra de inmediato que era una simulacion, con las senales que debieron detectarse.
+- Muestra un error generico con un boton "Volver a intentar" que **no lleva a
+  ningun lado**: el clic dispara la revelacion. Quien pica aprende la leccion
+  con su propio clic, no con una diapositiva.
+- Muestra en el acto que era una simulacion, con las senales que debieron
+  detectarse.
 - Permite que cada persona compruebe en el taller que lo capturado corresponde
   a su contrasena real.
 
@@ -27,8 +31,12 @@ No hace, deliberadamente:
   plantillas licenciadas.
 - **No transmite la contrasena.** Ni cifrada, ni hasheada en el servidor, ni
   en ningun formato. El plaintext no sale del navegador.
-- **No reenvia al login real con un error falso.** La persona se entera en el
-  acto. Prolongar el engano es tactica de atacante y ademas ensena peor.
+- **No reenvia al login real.** Ni con un error falso, ni desde el boton de
+  reintento, ni con un enlace en la pantalla final. Prolongar el engano es
+  tactica de atacante, pero ademas seria contradictorio: no se puede ensenar
+  "verifica la URL antes de tipear" y cerrar el ejercicio dando un enlace para
+  hacer clic y tipear la contrasena otra vez. La pantalla final pide
+  explicitamente entrar al portal real escribiendo la direccion a mano.
 - **No almacena nada que permita recuperar una contrasena.**
 
 ## Como funciona el hasheo
@@ -71,11 +79,16 @@ php -S 0.0.0.0:8000 -t public
 En produccion, detras de HTTPS (sin certificado valido el navegador bloquea
 `crypto.subtle`, que solo existe en contextos seguros).
 
-Comprobar que todo funciona:
+Comprobar que todo funciona. La primera prueba cubre el backend y la
+criptografia; la segunda maneja un Chromium real y verifica, inspeccionando el
+trafico, que la contrasena no sale del navegador:
 
 ```bash
 php -S 127.0.0.1:8399 -t public &
 php bin/selftest.php
+
+chrome --headless --remote-debugging-port=9222 about:blank &
+node bin/browser-test.mjs
 ```
 
 Borrar los datos apenas termina el taller:
@@ -98,14 +111,19 @@ suplantacion de un tercero, con las consecuencias legales del caso.
 
 1. **Antes.** Envia el correo senuelo con el enlace. Dale unos dias.
 2. **En la sala.** Mostra `api.php?action=stats`: *"de N personas, X escribieron
-   su contrasena"*. Sin nombres. Nunca senales a nadie.
-3. **El momento.** Abri `verificar.html` y pedi un voluntario que haya caido.
+   su contrasena, y de esas, Y hicieron clic en 'Volver a intentar'"*. Sin
+   nombres. Nunca senales a nadie.
+3. **El mensaje de error.** Detenete en el numero de reintentos. No hubo ninguna
+   falla tecnica: ese error existe para conseguir un segundo intento, o para
+   que la persona crea que se equivoco al tipear. Es la tactica mas vieja del
+   manual y sigue funcionando porque un error de sistema parece normal.
+4. **El momento.** Abri `verificar.html` y pedi un voluntario que haya caido.
    Que escriba su contrasena. Sale **COINCIDE**.
-4. **El giro.** Abri las herramientas de desarrollo, pestana Red, y repeti la
+5. **El giro.** Abri las herramientas de desarrollo, pestana Red, y repeti la
    operacion en vivo: lo unico que viaja son 4 caracteres hexadecimales.
    Explica que vos nunca la tuviste — pero que un atacante real la tendria
    completa, en texto plano, y ya estaria dentro de la cuenta.
-5. **El cierre.** El unico control que no falla nunca: mirar la barra de
+6. **El cierre.** El unico control que no falla nunca: mirar la barra de
    direcciones **antes** de tipear. Y si el gestor de contrasenas no
    autocompleta, es porque el dominio no es el que dice ser.
 

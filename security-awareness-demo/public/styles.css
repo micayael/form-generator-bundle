@@ -23,6 +23,11 @@ body {
   font: 15px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
+/* Debe ir antes de .screen: sin esto, el display:flex del autor le gana al
+   atributo hidden (el CSS del autor pisa al del navegador) y las pantallas
+   ocultas quedarian visibles. */
+[hidden] { display: none !important; }
+
 .screen { width: 100%; display: flex; justify-content: center; }
 
 .card {

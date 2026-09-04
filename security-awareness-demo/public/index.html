@@ -36,6 +36,30 @@
   </form>
 </main>
 
+<!--
+  Pantalla trampa. El mensaje de error generico es la tactica que usa un
+  atacante para conseguir un segundo intento. Aca el boton no lleva a ningun
+  lado: dispara la revelacion, para que la leccion la de el propio clic.
+-->
+<main id="screen-error" class="screen" hidden>
+  <div class="card">
+    <div class="brand" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="32" height="32"><rect x="2" y="2" width="13" height="13" rx="2"/><rect x="17" y="2" width="13" height="13" rx="2"/><rect x="2" y="17" width="13" height="13" rx="2"/><rect x="17" y="17" width="13" height="13" rx="2"/></svg>
+      <span>Portal Corporativo</span>
+    </div>
+
+    <h1>No pudimos validar tus datos</h1>
+
+    <p class="error" role="alert">Se produjo un problema al verificar tus
+       credenciales. Volve a intentarlo.</p>
+
+    <p class="notice">Si el inconveniente persiste, comunicate con la mesa de
+       ayuda.</p>
+
+    <button type="button" id="retry">Volver a intentar</button>
+  </div>
+</main>
+
 <main id="screen-result" class="screen" hidden>
   <div class="card reveal">
     <div class="stop" aria-hidden="true">!</div>
@@ -44,6 +68,17 @@
     <p class="lead">Acabas de escribir tu contrasena corporativa en un sitio que
        <strong>no pertenece a la empresa</strong>. Si esto hubiera sido un ataque
        real, tu cuenta ya estaria comprometida.</p>
+
+    <div class="proof" id="retry-callout" hidden>
+      <p class="proof-label">Y hay algo peor</p>
+      <p>Hiciste clic en <strong>"Volver a intentar"</strong>. Ibas a escribir tu
+         contrasena por segunda vez, en la misma pagina falsa.</p>
+      <p class="proof-note">No habia ningun problema tecnico. Ese mensaje de
+         error existe para una sola cosa: conseguir un segundo intento cuando el
+         primero no sirvio, o hacerte creer que te equivocaste al tipear. Es la
+         herramienta mas vieja del manual, y funciona porque un error de sistema
+         parece de lo mas normal.</p>
+    </div>
 
     <div class="proof">
       <p class="proof-label">Prueba de que capturamos algo</p>
@@ -63,9 +98,17 @@
       <li><strong>Nadie te pide re-validar por correo.</strong> Un mensaje que
           dice que tu sesion expiro y te manda a un enlace es una tactica clasica.</li>
       <li><strong>La urgencia.</strong> El apuro existe para que no pienses.</li>
+      <li><strong>El error generico.</strong> Un fallo justo despues de entregar
+          la contrasena casi nunca es un fallo. Es el pedido de un segundo intento.</li>
       <li><strong>El gestor de contrasenas no autocompleto.</strong> Si usas uno,
           su silencio es una alarma: el reconoce el dominio, tus ojos no.</li>
     </ul>
+
+    <h2>Que hacer ahora</h2>
+    <p>Entra al portal real <strong>escribiendo vos mismo la direccion</strong> en
+       la barra del navegador, o desde tu marcador de siempre. A proposito no
+       encontras aca ningun enlace para hacer clic: ese es justamente el habito
+       que conviene abandonar.</p>
 
     <p class="ask">Te pedimos un favor: <strong>no le cuentes a tus companeros</strong>
        hasta el taller. La sorpresa es parte del ejercicio.</p>

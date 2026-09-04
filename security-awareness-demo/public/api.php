@@ -127,6 +127,7 @@ if ('record' === $action) {
         'prefix' => $prefix,
         'ts' => time(),
         'attempts' => 0,
+        'retried' => false,
     ];
 
     saveStore($store);
@@ -170,9 +171,32 @@ if ('verify' === $action) {
     ok(['match' => hash_equals($store[$email]['prefix'], $prefix)]);
 }
 
+if ('retry' === $action) {
+    // Marca a quien, ademas de entregar la contrasena, pico con el mensaje
+    // de error y estuvo por escribirla una segunda vez.
+    $body = jsonBody();
+    $email = normalizeEmail($body['email'] ?? '');
+    $store = loadStore();
+
+    if (!isset($store[$email])) {
+        fail(404, 'No hay ningun registro para ese correo en este ejercicio.');
+    }
+
+    $store[$email]['retried'] = true;
+    saveStore($store);
+
+    ok(['status' => 'recorded']);
+}
+
 if ('stats' === $action) {
-    // Solo el recuento agregado: es lo unico que necesita la presentacion.
-    ok(['participants' => count(loadStore())]);
+    // Solo recuentos agregados: es lo unico que necesita la presentacion.
+    // Nunca se exponen correos ni huellas por esta via.
+    $store = loadStore();
+
+    ok([
+        'participants' => count($store),
+        'retried' => count(array_filter($store, static fn (array $r): bool => $r['retried'] ?? false)),
+    ]);
 }
 
 fail(404, 'Accion desconocida.');

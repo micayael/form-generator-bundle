@@ -83,7 +83,16 @@ check('se rechaza una huella de mas de 16 bits', 422 === $status);
 check('un correo desconocido no filtra nada', 404 === $status);
 
 [$status, $payload] = request('/api.php?action=stats');
-check('las estadisticas son solo un recuento', 200 === $status && ['participants' => 1] === $payload);
+check('las estadisticas no exponen correos ni huellas', 200 === $status && ['participants' => 1, 'retried' => 0] === $payload);
+
+[$status] = request('/api.php?action=retry', ['email' => $email]);
+check('se registra el clic en "volver a intentar"', 200 === $status);
+
+[, $payload] = request('/api.php?action=stats');
+check('el reintento se cuenta aparte', 1 === $payload['retried']);
+
+[$status] = request('/api.php?action=retry', ['email' => 'nadie@empresa.com']);
+check('no se puede marcar un correo inexistente', 404 === $status);
 
 echo "\n".(0 === $failures ? "Todo en orden.\n" : "{$failures} comprobacion(es) fallaron.\n");
 
