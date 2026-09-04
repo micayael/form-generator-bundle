@@ -15,11 +15,10 @@ Hace:
 
 - Presenta una pantalla de inicio de sesion corporativa creible.
 - Detecta quien escribio sus credenciales y quien no.
-- Muestra un error generico con un boton "Volver a intentar" que **no lleva a
-  ningun lado**: el clic dispara la revelacion. Quien pica aprende la leccion
-  con su propio clic, no con una diapositiva.
-- Muestra en el acto que era una simulacion, con las senales que debieron
-  detectarse.
+- Muestra un error generico con un boton "Volver a intentar". Que hace ese
+  boton depende del modo (ver abajo).
+- Explica que senales debieron detectarse.
+- Trae un panel proyectable con los recuentos para el cierre del taller.
 - Permite que cada persona compruebe en el taller que lo capturado corresponde
   a su contrasena real.
 
@@ -31,12 +30,42 @@ No hace, deliberadamente:
   plantillas licenciadas.
 - **No transmite la contrasena.** Ni cifrada, ni hasheada en el servidor, ni
   en ningun formato. El plaintext no sale del navegador.
-- **No reenvia al login real.** Ni con un error falso, ni desde el boton de
-  reintento, ni con un enlace en la pantalla final. Prolongar el engano es
-  tactica de atacante, pero ademas seria contradictorio: no se puede ensenar
-  "verifica la URL antes de tipear" y cerrar el ejercicio dando un enlace para
-  hacer clic y tipear la contrasena otra vez. La pantalla final pide
-  explicitamente entrar al portal real escribiendo la direccion a mano.
+
+## Los dos modos
+
+Se eligen en `public/config.js`.
+
+### `reveal` (por defecto)
+
+El boton "Volver a intentar" no lleva a ningun lado: dispara la revelacion en
+el acto. El clic es la trampa, y la leccion la da el propio clic en lugar de
+una diapositiva. Si la persona no toca nada, la revelacion aparece igual a los
+20 segundos.
+
+Es el modo para una **campana por correo**, donde no hay nadie presente para
+explicar. La pantalla final no ofrece ningun enlace: pide entrar al portal
+escribiendo la direccion a mano, porque seria contradictorio ensenar "verifica
+la URL antes de tipear" y cerrar dando un enlace para clickear.
+
+### `handoff` (solo taller presencial)
+
+El boton redirige al login legitimo, donde la persona entra normalmente y no
+nota nada. Reproduce lo que hace un ataque real.
+
+Este es el modo mas potente para un taller con la gente en la sala, y la razon
+es pedagogica: si la pagina grita "caiste" en el momento, la leccion que se
+llevan es que las paginas de phishing se delatan, que es lo contrario de la
+verdad. Dejarlos entrar, que funcione, que queden sin entender, y recien
+entonces explicar, ensena lo que de verdad importa: **no lo habrias notado**.
+
+**Este modo no explica nada por si mismo.** Depende enteramente de que cierres
+la sesion contando que ocurrio. Usalo solo con la gente presente y con el
+cierre asegurado; en una campana por correo la gente se queda con la confusion
+y sin la leccion, que es lo unico que justifica el ejercicio.
+
+Requiere `realLoginUrl` con una URL **https**. Si falta, no es https o no es
+una URL valida, el ejercicio vuelve solo a `reveal` en lugar de mandar a la
+gente a un destino inesperado.
 - **No almacena nada que permita recuperar una contrasena.**
 
 ## Como funciona el hasheo
@@ -84,12 +113,14 @@ criptografia; la segunda maneja un Chromium real y verifica, inspeccionando el
 trafico, que la contrasena no sale del navegador:
 
 ```bash
-php -S 127.0.0.1:8399 -t public &
-php bin/selftest.php
-
-chrome --headless --remote-debugging-port=9222 about:blank &
-node bin/browser-test.mjs
+bin/test-all.sh
 ```
+
+Corre las cuatro suites — backend y criptografia, validacion de la
+configuracion, y el navegador en los dos modos — y deja `config.js` como
+estaba. La prueba del navegador maneja un Chromium real por CDP e inspecciona
+el trafico para confirmar que la contrasena no sale del equipo. Si tu Chromium
+esta en otra ruta, pasala en `CHROME=`.
 
 Borrar los datos apenas termina el taller:
 
@@ -107,25 +138,47 @@ Usa un dominio o subdominio **que tu empresa ya posea** (por ejemplo
 Microsoft ni a uno ajeno: eso deja de ser un ejercicio interno y pasa a ser
 suplantacion de un tercero, con las consecuencias legales del caso.
 
-## Guion del taller
+## Guion del taller presencial (modo `handoff`)
 
-1. **Antes.** Envia el correo senuelo con el enlace. Dale unos dias.
-2. **En la sala.** Mostra `api.php?action=stats`: *"de N personas, X escribieron
-   su contrasena, y de esas, Y hicieron clic en 'Volver a intentar'"*. Sin
-   nombres. Nunca senales a nadie.
-3. **El mensaje de error.** Detenete en el numero de reintentos. No hubo ninguna
+Este es el formato mas efectivo: todo ocurre en la misma sesion, con la gente
+en la sala.
+
+1. **Preparacion.** `mode: 'handoff'` y `realLoginUrl` apuntando al login real.
+   Proyecta `panel.html` en una pantalla que vos veas y ellos no.
+2. **La consigna.** Pediles que entren al portal a revisar algo — cualquier
+   excusa de trabajo normal. Dales la URL del ejercicio sin darle importancia.
+3. **Lo que viven ellos.** Escriben sus credenciales, les da un error, tocan
+   "Volver a intentar", caen en el login real, entran sin problema y siguen
+   con lo suyo. Nadie nota nada. **Ese es el punto.**
+4. **Segui con el taller.** Veinte minutos de contenido normal. Que se olviden.
+5. **El cierre.** Proyecta el panel: *"hace media hora, N de ustedes escribieron
+   su contrasena en un sitio que no es de la empresa. Y Y de esos hicieron clic
+   en 'Volver a intentar'"*.
+6. **El mensaje de error.** Detenete en ese segundo numero. No hubo ninguna
    falla tecnica: ese error existe para conseguir un segundo intento, o para
    que la persona crea que se equivoco al tipear. Es la tactica mas vieja del
-   manual y sigue funcionando porque un error de sistema parece normal.
-4. **El momento.** Abri `verificar.html` y pedi un voluntario que haya caido.
-   Que escriba su contrasena. Sale **COINCIDE**.
-5. **El giro.** Abri las herramientas de desarrollo, pestana Red, y repeti la
-   operacion en vivo: lo unico que viaja son 4 caracteres hexadecimales.
-   Explica que vos nunca la tuviste — pero que un atacante real la tendria
-   completa, en texto plano, y ya estaria dentro de la cuenta.
-6. **El cierre.** El unico control que no falla nunca: mirar la barra de
+   manual y funciona porque un error de sistema parece de lo mas normal.
+7. **La prueba.** Abri `verificar.html` y pedi un voluntario. Que escriba su
+   contrasena. Sale **COINCIDE**.
+8. **El giro.** Abri las herramientas de desarrollo, pestana Red, y repeti la
+   operacion en vivo: lo unico que viaja son 4 caracteres hexadecimales. Vos
+   nunca la tuviste. Un atacante real la tendria completa, en texto plano, y
+   ya estaria dentro de la cuenta — y ellos tampoco se habrian enterado.
+9. **El cierre.** El unico control que no falla nunca: mirar la barra de
    direcciones **antes** de tipear. Y si el gestor de contrasenas no
    autocompleta, es porque el dominio no es el que dice ser.
+
+El paso 4 no es relleno. La distancia entre el momento en que caen y el momento
+en que se enteran es lo que demuestra que un ataque real pasa desapercibido.
+
+## Guion de campana por correo (modo `reveal`)
+
+1. **Antes.** Envia el correo senuelo con el enlace. Dale unos dias.
+2. **Cada persona** que cae se entera en el acto, en su pantalla.
+3. **En la sala.** Los mismos pasos 5 a 9 de arriba, con los numeros ya cerrados.
+
+Pediles en la pantalla final que no le cuenten a los companeros hasta el
+taller — ya viene ese pedido en el texto.
 
 ## Antes de ejecutarlo
 
@@ -135,6 +188,11 @@ suplantacion de un tercero, con las consecuencias legales del caso.
   traten como un incidente real.
 - Nunca expongas quien cayo. El agregado sirve; los nombres humillan y hacen
   que la proxima vez nadie reporte nada.
+- Si usas el modo `handoff`, **el cierre no es opcional**. Es lo unico que
+  convierte el ejercicio en capacitacion en vez de en una broma a costa de la
+  gente. No lo dejes para otro dia.
+- Avisales que su gestor de contrasenas pudo haber ofrecido guardar el dominio
+  falso, y que conviene borrar esa entrada.
 - Corre `bin/purge.php` al terminar.
 
 ## Alternativa recomendada

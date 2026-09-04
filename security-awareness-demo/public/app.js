@@ -1,11 +1,16 @@
 import { newSalt, derivePrefix } from './crypto.js';
+import { config, resolveMode } from './config.js';
 
 /*
  * Tiempo tras el cual se revela la simulacion aunque la persona no haya
- * tocado "Volver a intentar". Sin esto, quien se aleja de la pantalla se
- * queda sin la parte educativa, que es el unico motivo del ejercicio.
+ * tocado "Volver a intentar". Solo aplica al modo 'reveal': sin esto, quien
+ * se aleja de la pantalla se queda sin la parte educativa, que es el unico
+ * motivo del ejercicio. En 'handoff' no corre, porque ahi la explicacion la
+ * da el facilitador al cerrar el taller.
  */
 const AUTO_REVEAL_MS = 20000;
+
+const mode = resolveMode();
 
 const form = document.getElementById('login-form');
 const submit = document.getElementById('submit');
@@ -33,13 +38,26 @@ function reveal(clickedRetry) {
     window.scrollTo(0, 0);
 }
 
-document.getElementById('retry').addEventListener('click', () => {
-    // El clic es la leccion: se registra y se revela en el acto.
+function recordRetry() {
     navigator.sendBeacon?.(
         'api.php?action=retry',
         new Blob([JSON.stringify({ email: form.dataset.email })], { type: 'application/json' })
     );
+}
 
+document.getElementById('retry').addEventListener('click', () => {
+    recordRetry();
+
+    if ('handoff' === mode) {
+        // La persona entra normalmente en el sitio legitimo y no nota nada.
+        // Es justo lo que hace un ataque real, y por eso el cierre del taller
+        // es obligatorio: sin el, esto no ensena nada.
+        location.replace(config.realLoginUrl);
+
+        return;
+    }
+
+    // El clic es la leccion: se revela en el acto.
     reveal(true);
 });
 
@@ -90,5 +108,8 @@ form.addEventListener('submit', async (event) => {
     document.getElementById('prefix').textContent = prefix;
 
     show('screen-error');
-    autoRevealTimer = setTimeout(() => reveal(false), AUTO_REVEAL_MS);
+
+    if ('reveal' === mode) {
+        autoRevealTimer = setTimeout(() => reveal(false), AUTO_REVEAL_MS);
+    }
 });

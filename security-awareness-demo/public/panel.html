@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Resultados — Taller de seguridad</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .panel { max-width: 720px; text-align: center; }
+  .figures { display: flex; gap: 20px; margin: 32px 0 8px; }
+  .figure { flex: 1; padding: 24px 12px; border: 1px solid var(--line); border-radius: 8px; }
+  .figure strong { display: block; font-size: 56px; line-height: 1; font-variant-numeric: tabular-nums; }
+  .figure span { display: block; margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .figure.hit strong { color: var(--danger); }
+  @media (max-width: 560px) { .figures { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<main class="screen">
+  <div class="card panel">
+    <h1>Lo que acaba de pasar en esta sala</h1>
+
+    <div class="figures">
+      <div class="figure hit">
+        <strong id="participants">–</strong>
+        <span>escribieron su contrasena<br>en el sitio falso</span>
+      </div>
+      <div class="figure hit">
+        <strong id="retried">–</strong>
+        <span>ademas hicieron clic en<br>"Volver a intentar"</span>
+      </div>
+    </div>
+
+    <p class="foot" id="status">Actualizando cada 5 segundos…</p>
+
+    <p class="ask">Ningun nombre. El objetivo no es senalar a nadie: si la
+       gente teme quedar expuesta, la proxima vez no reporta nada, y quedarse
+       callado es lo unico que le sirve al atacante.</p>
+  </div>
+</main>
+
+<script type="module" src="panel.js"></script>
+</body>
+</html>
