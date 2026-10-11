@@ -24,7 +24,7 @@ class FormGenerator
         $this->formFactory = $formFactory;
     }
 
-    public function createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null, string $baseFormTypeClass = null, string $groupName = null): ?FormInterface
+    public function createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null): ?FormInterface
     {
         $array = Yaml::parse($formConfigYaml);
         $json = json_encode($array);
@@ -32,14 +32,14 @@ class FormGenerator
         return $this->createFormFromJson($json, $formOptions, $data, $baseFormTypeClass, $groupName);
     }
 
-    public function createFormFromJson(string $formConfigJson, array $formOptions = [], $data = null, string $baseFormTypeClass = null, string $groupName = null): ?FormInterface
+    public function createFormFromJson(string $formConfigJson, array $formOptions = [], $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null): ?FormInterface
     {
         $formConfig = json_decode($formConfigJson, true);
 
         return $this->createForm($formConfig, $formOptions, $data, $baseFormTypeClass, $groupName);
     }
 
-    public function createForm(array $formConfig, array $formOptions = [], $data = null, string $baseFormTypeClass = null, string $groupName = null): ?FormInterface
+    public function createForm(array $formConfig, array $formOptions = [], $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null): ?FormInterface
     {
         if (empty($formConfig)) {
             return null;
