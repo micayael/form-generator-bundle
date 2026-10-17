@@ -38,6 +38,10 @@ class AppTestKernel extends BaseKernel
             'test' => true,
             'http_method_override' => false,
             'csrf_protection' => false,
+            // En Symfony 5.x no definirlo genera una deprecación (desde 6.0 es true por defecto)
+            'router' => [
+                'utf8' => true,
+            ],
             'validation' => [
                 'email_validation_mode' => 'html5',
             ],
