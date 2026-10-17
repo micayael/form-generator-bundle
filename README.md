@@ -2,6 +2,9 @@ micayael/form-generator-bundle
 ==============================
 
 [![CI](https://github.com/micayael/form-generator-bundle/actions/workflows/ci.yml/badge.svg)](https://github.com/micayael/form-generator-bundle/actions/workflows/ci.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=micayael_form-generator-bundle&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=micayael_form-generator-bundle)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=micayael_form-generator-bundle&metric=coverage)](https://sonarcloud.io/summary/new_code?id=micayael_form-generator-bundle)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=micayael_form-generator-bundle&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=micayael_form-generator-bundle)
 [![Latest Stable Version](https://img.shields.io/packagist/v/micayael/form-generator-bundle.svg)](https://packagist.org/packages/micayael/form-generator-bundle)
 [![Total Downloads](https://img.shields.io/packagist/dt/micayael/form-generator-bundle.svg)](https://packagist.org/packages/micayael/form-generator-bundle)
 [![PHP from Packagist](https://img.shields.io/packagist/php-v/micayael/form-generator-bundle.svg)](https://packagist.org/packages/micayael/form-generator-bundle)
