@@ -24,8 +24,34 @@ final class ConstraintFactory
     // Opciones que Symfony invoca como callables aunque no estén tipadas como tales
     private const CALLABLE_OPTIONS = ['normalizer', 'callback'];
 
+    // Constraints bloqueadas en modo untrusted: evalúan expresiones o invocan código
+    public const UNTRUSTED_BLOCKED_CONSTRAINTS = [
+        'Symfony\\Component\\Validator\\Constraints\\Callback',
+        'Symfony\\Component\\Validator\\Constraints\\Expression',
+        'Symfony\\Component\\Validator\\Constraints\\When',
+    ];
+
     /** @var array<class-string<Constraint>, array<string, \ReflectionParameter>> */
     private array $constructorParameters = [];
+
+    /** @var list<class-string<Constraint>> */
+    private readonly array $allowedConstraints;
+
+    /**
+     * @param bool         $untrusted          only the Symfony constraints (except the blocked ones) and $allowedConstraints can be used
+     * @param list<string> $allowedConstraints names or FQCN of constraints allowed anyway in untrusted mode
+     */
+    public function __construct(
+        private readonly bool $untrusted = false,
+        array $allowedConstraints = [],
+    ) {
+        $this->allowedConstraints = array_map(fn (string $name): string => $this->resolveClass($name), $allowedConstraints);
+    }
+
+    public function isUntrusted(): bool
+    {
+        return $this->untrusted;
+    }
 
     /**
      * Crea una lista de constraints a partir de un mapa "nombre: opciones",
@@ -76,6 +102,10 @@ final class ConstraintFactory
     public function create(string $name, mixed $options = []): Constraint
     {
         $class = $this->resolveClass($name);
+
+        if ($this->untrusted && !$this->isAllowedInUntrustedMode($class)) {
+            throw new InvalidConfigurationException(sprintf('The constraint "%s" is not allowed in untrusted mode.', $name));
+        }
 
         if (true === $options || null === $options) {
             $options = [];
@@ -134,6 +164,18 @@ final class ConstraintFactory
         }
 
         return $class;
+    }
+
+    /**
+     * @param class-string<Constraint> $class
+     */
+    private function isAllowedInUntrustedMode(string $class): bool
+    {
+        if (\in_array($class, $this->allowedConstraints, true)) {
+            return true;
+        }
+
+        return str_starts_with($class, self::CONSTRAINTS_NAMESPACE) && !\in_array($class, self::UNTRUSTED_BLOCKED_CONSTRAINTS, true);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace Micayael\Bundle\FormGeneratorBundle\DependencyInjection;
 
+use Micayael\Bundle\FormGeneratorBundle\Service\ConstraintFactory;
 use Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -23,6 +24,13 @@ class MicayaelFormGeneratorExtension extends Extension
         $container->getDefinition(FormGenerator::class)
             ->setArgument('$types', $config['types'])
             ->setArgument('$allowedClasses', $config['allowed_classes'])
+            ->setArgument('$untrusted', $config['untrusted'])
+            ->setArgument('$allowedOptions', $config['allowed_options'])
+        ;
+
+        $container->getDefinition(ConstraintFactory::class)
+            ->setArgument('$untrusted', $config['untrusted'])
+            ->setArgument('$allowedConstraints', $config['allowed_constraints'])
         ;
     }
 }

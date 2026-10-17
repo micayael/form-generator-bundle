@@ -26,30 +26,52 @@ final class FormGenerator implements FormGeneratorInterface
     // Opciones de form types que solo aceptan callables
     private const CALLABLE_OPTIONS = ['getter', 'setter'];
 
+    // Opciones bloqueadas en modo untrusted: escriben en el modelo, instancian clases, cambian el tipo
+    // de los hijos o renderizan HTML sin escapar
+    public const UNTRUSTED_BLOCKED_OPTIONS = [
+        'property_path', 'mapped', 'inherit_data', 'by_reference', 'data', 'data_class', 'empty_data',
+        'getter', 'setter', 'entry_type', 'entry_options', 'prototype_options',
+        'label_html', 'help_html', 'block_name', 'block_prefix',
+    ];
+
     /** @var array<string, array{class: string, default_options: array<string, mixed>}> */
     private readonly array $types;
 
     /** @var list<string> */
     private readonly array $allowedClasses;
 
+    /** @var list<string> */
+    private readonly array $allowedOptions;
+
     private readonly ConstraintFactory $constraintFactory;
 
     private readonly AsciiSlugger $slugger;
 
     /**
-     * @param array<string, array{class?: ?string, default_options?: array<string, mixed>}> $types          custom aliases or overrides of the built-in ones
-     * @param list<string>                                                                  $allowedClasses if not empty, the only FQCN form types allowed in the "type" key
+     * @param array<string, array{class?: ?string, default_options?: array<string, mixed>}> $types              custom aliases or overrides of the built-in ones
+     * @param list<string>                                                                  $allowedClasses     if not empty, the only FQCN form types allowed in the "type" key (in untrusted mode, always)
+     * @param bool                                                                          $untrusted          the configuration comes from untrusted users: dangerous options and constraints are blocked
+     * @param list<string>                                                                  $allowedOptions     options of UNTRUSTED_BLOCKED_OPTIONS allowed anyway in untrusted mode
+     * @param list<string>                                                                  $allowedConstraints constraints allowed anyway in untrusted mode (only used if $constraintFactory is null)
      */
     public function __construct(
         private readonly FormFactoryInterface $formFactory,
         array $types = [],
         array $allowedClasses = [],
         ?ConstraintFactory $constraintFactory = null,
+        private readonly bool $untrusted = false,
+        array $allowedOptions = [],
+        array $allowedConstraints = [],
     ) {
         $this->types = $this->mergeTypes(SupportedTypes::SUPPORTED_TYPES, $types);
         $this->allowedClasses = array_map(static fn (string $class): string => ltrim($class, '\\'), $allowedClasses);
-        $this->constraintFactory = $constraintFactory ?? new ConstraintFactory();
+        $this->allowedOptions = $allowedOptions;
+        $this->constraintFactory = $constraintFactory ?? new ConstraintFactory($untrusted, $allowedConstraints);
         $this->slugger = new AsciiSlugger();
+
+        if ($untrusted && !$this->constraintFactory->isUntrusted()) {
+            throw new InvalidConfigurationException('In untrusted mode the ConstraintFactory must also be untrusted.');
+        }
     }
 
     public function createFormFromYaml(string $formConfigYaml, array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null, ?string $formName = null): FormInterface
@@ -98,6 +120,11 @@ final class FormGenerator implements FormGeneratorInterface
             $rootBuilder = $builder->get($groupName);
         }
 
+        // En modo untrusted los nombres de los campos no pueden escribir propiedades de un objeto
+        if ($this->untrusted && $formConfig && null !== $rootBuilder->getDataClass()) {
+            throw new InvalidConfigurationException(sprintf('In untrusted mode the fields can\'t be added to a form with a "data_class" ("%s"): use the $groupName argument.', $rootBuilder->getDataClass()));
+        }
+
         // Claves de los grupos creados por extras.group / extras.position
         $groupKeys = [];
 
@@ -107,6 +134,7 @@ final class FormGenerator implements FormGeneratorInterface
             $typeConfig = $this->resolveType($inputConfig['type']);
 
             $this->assertNoCallableOptions($inputName, $inputConfig['options']);
+            $this->assertAllowedOptions($inputName, $inputConfig['options']);
 
             // Se compilan las opciones default con las definidas
             $inputOptions = array_replace($typeConfig['default_options'], $inputConfig['options']);
@@ -129,8 +157,13 @@ final class FormGenerator implements FormGeneratorInterface
                 throw new InvalidConfigurationException(sprintf('The field "%s" collides with the group of the same name.', $inputName));
             }
 
-            $this->resolveParentBuilder($rootBuilder, $inputConfig['extras'], $groupKeys)
-                ->add($inputName, $typeConfig['class'], $inputOptions);
+            $parentBuilder = $this->resolveParentBuilder($rootBuilder, $inputConfig['extras'], $groupKeys);
+
+            if ($this->untrusted && $parentBuilder->has($inputName)) {
+                throw new InvalidConfigurationException(sprintf('In untrusted mode the field "%s" can\'t replace a field of the base form type.', $inputName));
+            }
+
+            $parentBuilder->add($inputName, $typeConfig['class'], $inputOptions);
         }
 
         return $builder;
@@ -224,7 +257,7 @@ final class FormGenerator implements FormGeneratorInterface
             throw NotSupportedFormTypeException::unknown($type, array_keys($this->types));
         }
 
-        if ($this->allowedClasses && !\in_array(ltrim($type, '\\'), $this->allowedClasses, true)) {
+        if (($this->untrusted || $this->allowedClasses) && !\in_array(ltrim($type, '\\'), $this->allowedClasses, true)) {
             throw NotSupportedFormTypeException::notAllowed($type);
         }
 
@@ -301,6 +334,22 @@ final class FormGenerator implements FormGeneratorInterface
             if ($isArrayCallable || $isCallable) {
                 throw new InvalidConfigurationException(sprintf('The option "%s" of the field "%s" only accepts a callable as a \Closure.', $option, $inputName));
             }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $options
+     */
+    private function assertAllowedOptions(string $inputName, array $options): void
+    {
+        if (!$this->untrusted) {
+            return;
+        }
+
+        $blockedOptions = array_diff(array_intersect(array_keys($options), self::UNTRUSTED_BLOCKED_OPTIONS), $this->allowedOptions);
+
+        if ($blockedOptions) {
+            throw new InvalidConfigurationException(sprintf('The option(s) "%s" of the field "%s" are not allowed in untrusted mode.', implode('", "', $blockedOptions), $inputName));
         }
     }
 

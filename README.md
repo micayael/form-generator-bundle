@@ -524,11 +524,15 @@ micayael_form_generator:
         constraints:
           not_blank: false
 
-  # when the configuration comes from users or the database, restrict the FQCN usable in "type"
-  # (the aliases are always allowed). Empty: any form type is allowed
+  # restrict the FQCN usable in "type" (the aliases are always allowed). Empty: any form type is allowed
   allowed_classes:
     - App\Form\Type\ProductCategoryType
     - Symfony\Component\Form\Extension\Core\Type\CollectionType
+
+  # when the configurations come from users, see "Security"
+  untrusted: false
+  allowed_options: []
+  allowed_constraints: []
 ~~~
 
 Using it without the bundle
@@ -565,7 +569,7 @@ Invalid configurations throw an exception implementing
 
 | Exception                         | When                                                                          |
 |-----------------------------------|-------------------------------------------------------------------------------|
-| `InvalidConfigurationException`   | invalid JSON/YAML, unknown keys in a field, unknown constraints or options, callables not given as `\Closure`, field and group with the same name |
+| `InvalidConfigurationException`   | invalid JSON/YAML, unknown keys in a field, unknown constraints or options, callables not given as `\Closure`, field and group with the same name, options or constraints not allowed in untrusted mode |
 | `NotSupportedFormTypeException`   | `type` is not an alias nor a form type class, or it is not in `allowed_classes` |
 
 Both extend `\InvalidArgumentException`. The messages explain the problem, e.g.
@@ -588,8 +592,13 @@ To validate a configuration when it is saved (e.g. in an admin panel), create th
 Security
 --------
 
-`options` are passed to the form types as they are. To avoid running arbitrary code from a
-configuration stored in YAML/JSON, callables are only accepted as `\Closure` (that is, from PHP code):
+The bundle has two modes, depending on who writes the form configurations.
+
+### Trusted configurations (default)
+
+When the configurations are written by developers (files of the project, fixtures, ...), every
+form type, option and constraint can be used. Even so, to avoid running arbitrary code from YAML/JSON,
+callables are only accepted as `\Closure` (that is, from PHP code):
 
 - constraint options typed as callables (`normalizer`, `callback`, ...)
 - form options that Symfony calls when they receive an array callable (`validation_groups`, `choice_label`,
@@ -603,8 +612,53 @@ name:
       not_blank: { normalizer: trim }
 ~~~
 
-Even so, if the configuration comes from untrusted users, also restrict `allowed_classes` and review which
-options they can set (`attr`, `label_html`, `help_html`, ... affect the rendered HTML).
+### Untrusted configurations
+
+When the configurations can be written by users (an admin panel, a form builder for customers, an API, ...),
+enable the untrusted mode. Without it, a malicious configuration could, for example:
+
+- list the data of any Doctrine entity in the HTML (`type: EntityType`, `class: App\Entity\User`, `choice_label: password`)
+- change properties of your objects that are not in the form (`property_path: roles`)
+- call methods of your objects (`expression` constraint)
+- inject HTML / JavaScript (`label_html: true`)
+
+~~~yaml
+# config/packages/micayael_form_generator.yaml
+micayael_form_generator:
+  untrusted: true
+
+  # FQCN form types allowed in "type". In untrusted mode, empty means only the aliases
+  allowed_classes:
+    - Symfony\Component\Form\Extension\Core\Type\CollectionType
+
+  # blocked options allowed anyway
+  allowed_options: [label_html]
+
+  # constraints allowed anyway (name or FQCN), e.g. your own constraints
+  allowed_constraints:
+    - App\Validator\ValidTaxId
+~~~
+
+In untrusted mode:
+
+| Rule | Detail |
+|------|--------|
+| Form types | only the aliases (built-in and the ones in `types`) and the classes in `allowed_classes` |
+| Blocked options | `property_path`, `mapped`, `inherit_data`, `by_reference`, `data`, `data_class`, `empty_data`, `getter`, `setter`, `entry_type`, `entry_options`, `prototype_options`, `label_html`, `help_html`, `block_name`, `block_prefix` |
+| Constraints | only the Symfony ones, except `expression`, `when` and `callback`, plus `allowed_constraints` (also inside nested constraints) |
+| Objects | the fields can't be added to a form with a `data_class`, because their names would write properties of the object: use `$groupName` to store them in an array property |
+| Base form type | the fields can't replace the fields of `$baseFormTypeClass` |
+
+~~~php
+// ProductType has a data_class: the dynamic fields go to the "attributes" array property
+$form = $this->formGenerator->createFormFromJson($userConfig, data: $product, baseFormTypeClass: ProductType::class, groupName: 'attributes');
+~~~
+
+Without the bundle, pass `untrusted: true` (and `allowedOptions` / `allowedConstraints`) to the `FormGenerator`
+constructor.
+
+The configuration is still user input: the texts (labels, help, placeholders) are escaped by Twig, but review
+your templates if you render them in other ways, and limit the size of the configurations you accept.
 
 Upgrading from 1.x
 ------------------

@@ -27,6 +27,9 @@
   `allowed_classes` (restrict which FQCN form types can be used).
 - `FormGeneratorInterface` service alias, `createFormBuilder()` method and `$formName` argument.
 - Validation of the field configuration (unknown keys, wrong types) with `InvalidConfigurationException`.
+- Untrusted mode (`untrusted`, `allowed_options`, `allowed_constraints`) for configurations written by users:
+  blocks dangerous options (`property_path`, `data_class`, `label_html`, ...), the `expression`, `when` and
+  `callback` constraints, non-Symfony constraints, FQCN types not in `allowed_classes` and fields mapped to objects.
 - All bundle exceptions implement `Micayael\Bundle\FormGeneratorBundle\Exception\ExceptionInterface`.
 
 ### Changed (BC breaks)
