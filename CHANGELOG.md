@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 (2026-10-17)
+
+### Changed
+
+- Internal refactoring of `ValidateConfigCommand` and `FormGenerator` to reduce cognitive complexity. No behavior changes.
+
 ## 2.1.0 (2026-10-17)
 
 ### Added
