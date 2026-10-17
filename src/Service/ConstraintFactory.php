@@ -25,7 +25,7 @@ final class ConstraintFactory
     ];
 
     // Opciones que Symfony invoca como callables aunque no estén tipadas como tales
-    private const CALLABLE_OPTIONS = ['normalizer', 'callback'];
+    public const CALLABLE_OPTIONS = ['normalizer', 'callback'];
 
     // Constraints bloqueadas en modo untrusted: evalúan expresiones o invocan código
     public const UNTRUSTED_BLOCKED_CONSTRAINTS = [

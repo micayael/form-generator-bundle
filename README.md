@@ -713,6 +713,23 @@ Stimulus controllers of your app.
 The configuration is still user input: the texts (labels, help, placeholders) are escaped by Twig, but review
 your templates if you render them in other ways, and limit the size of the configurations you accept.
 
+Schema for visual editors
+-------------------------
+
+`SchemaProvider` describes what a `FormGenerator` accepts, as an array that can be encoded to JSON: the form
+types (aliases from `types` plus `allowed_classes`) with their options, and the allowed constraints with
+their parameters.
+
+~~~php
+use Micayael\Bundle\FormGeneratorBundle\Service\SchemaProvider;
+
+$schema = $schemaProvider->getSchema($formGenerator);
+// ['untrusted' => bool, 'types' => [alias => ['class' => ..., 'options' => [name => ['types' => [...], 'default' => ...]]]], 'constraints' => [...]]
+~~~
+
+Options blocked in untrusted mode (except `allowed_options`), options that only accept callables and
+`constraints` are left out; so are the `groups`, `payload`, `options` and callable parameters of the constraints.
+
 Upgrading from 1.x
 ------------------
 

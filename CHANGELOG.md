@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0 (unreleased)
+
+### Added
+
+- `SchemaProvider::getSchema(FormGenerator)` returns a JSON-serializable description of the form types, their
+  options and the allowed constraints (respecting untrusted mode), for visual form editors.
+
 ## 2.0.0 (2026-10-17)
 
 ### Requirements
