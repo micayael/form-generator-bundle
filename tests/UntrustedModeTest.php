@@ -211,6 +211,14 @@ final class UntrustedModeTest extends KernelTestCase
         $this->assertTrue($form->get('a')->getConfig()->getOption('label_html'));
     }
 
+    public function testAvailableConstraintsInUntrustedMode(): void
+    {
+        $constraints = (new ConstraintFactory(true, [AppConstraint::class]))->getAvailableConstraints();
+        $this->assertArrayNotHasKey('expression', $constraints);
+        $this->assertArrayNotHasKey('callback', $constraints);
+        $this->assertSame(AppConstraint::class, $constraints['app_constraint']);
+    }
+
     /**
      * @param list<string> $allowedClasses
      * @param list<string> $allowedOptions

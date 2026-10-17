@@ -7,7 +7,10 @@ use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\Constraints\Collection;
 use Symfony\Component\Validator\Constraints\DateTime;
 use Symfony\Component\Validator\Constraints\Existence;
+use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Exception\ExceptionInterface as ValidatorExceptionInterface;
+
+use function Symfony\Component\String\u;
 
 /**
  * Crea constraints a partir de su nombre en snake_case ("not_blank" => NotBlank)
@@ -39,6 +42,9 @@ final class ConstraintFactory
 
     /** @var list<class-string<Constraint>> */
     private readonly array $allowedConstraints;
+
+    /** @var array<string, class-string<Constraint>>|null */
+    private ?array $availableConstraints = null;
 
     /**
      * @param bool         $untrusted          only the Symfony constraints (except the blocked ones) and $allowedConstraints can be used
@@ -106,7 +112,7 @@ final class ConstraintFactory
     {
         $class = $this->resolveClass($name);
 
-        if ($this->untrusted && !$this->isAllowedInUntrustedMode($class)) {
+        if (!$this->isAllowed($class)) {
             throw new InvalidConfigurationException(sprintf('The constraint "%s" is not allowed in untrusted mode.', $name));
         }
 
@@ -176,15 +182,62 @@ final class ConstraintFactory
     }
 
     /**
+     * Indica si la constraint se puede usar: en modo confiable todas, en untrusted solo
+     * las de Symfony (menos las bloqueadas) y las de $allowedConstraints.
+     *
      * @param class-string<Constraint> $class
      */
-    private function isAllowedInUntrustedMode(string $class): bool
+    public function isAllowed(string $class): bool
     {
+        if (!$this->untrusted) {
+            return true;
+        }
+
         if (\in_array($class, $this->allowedConstraints, true)) {
             return true;
         }
 
         return str_starts_with($class, self::CONSTRAINTS_NAMESPACE) && !\in_array($class, self::UNTRUSTED_BLOCKED_CONSTRAINTS, true);
+    }
+
+    /**
+     * Constraints disponibles (las de Symfony más $allowedConstraints) que pasan isAllowed(),
+     * indexadas por su alias en snake_case y ordenadas por alias.
+     *
+     * @return array<string, class-string<Constraint>>
+     */
+    public function getAvailableConstraints(): array
+    {
+        if (null !== $this->availableConstraints) {
+            return $this->availableConstraints;
+        }
+
+        $classes = $this->allowedConstraints;
+        $directory = \dirname((string) (new \ReflectionClass(NotBlank::class))->getFileName());
+
+        foreach (glob($directory.'/*.php') ?: [] as $file) {
+            $class = self::CONSTRAINTS_NAMESPACE.basename($file, '.php');
+
+            try {
+                if (class_exists($class) && is_subclass_of($class, Constraint::class) && (new \ReflectionClass($class))->isInstantiable()) {
+                    $classes[] = $class;
+                }
+            } catch (\Error) {
+                // Clases auxiliares del directorio con dependencias opcionales ausentes (p. ej. ExpressionLanguageProvider)
+            }
+        }
+
+        $constraints = [];
+
+        foreach (array_unique($classes) as $class) {
+            if ($this->isAllowed($class)) {
+                $constraints[u((new \ReflectionClass($class))->getShortName())->snake()->toString()] = $class;
+            }
+        }
+
+        ksort($constraints);
+
+        return $this->availableConstraints = $constraints;
     }
 
     /**

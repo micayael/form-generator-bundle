@@ -422,6 +422,25 @@ final class FormGeneratorTest extends KernelTestCase
         $this->assertSame($expected, array_map(static fn (Constraint $constraint): string => $constraint::class, $constraints));
     }
 
+    public function testAccessors(): void
+    {
+        $generator = new FormGenerator($this->getFormFactory(), allowedClasses: ['\\'.DemoFormType::class], allowedOptions: ['label_html']);
+        $this->assertFalse($generator->isUntrusted());
+        $this->assertSame([DemoFormType::class], $generator->getAllowedClasses());
+        $this->assertSame(['label_html'], $generator->getAllowedOptions());
+        $this->assertInstanceOf(ConstraintFactory::class, $generator->getConstraintFactory());
+    }
+
+    public function testAvailableConstraints(): void
+    {
+        $constraints = (new ConstraintFactory())->getAvailableConstraints();
+        $this->assertSame(Length::class, $constraints['length']);
+        $this->assertSame(NotBlank::class, $constraints['not_blank']);
+        $this->assertArrayHasKey('expression', $constraints);
+        $this->assertArrayNotHasKey('length_validator', $constraints);
+        $this->assertArrayNotHasKey('composite', $constraints);
+    }
+
     private function getFormFactory(): FormFactoryInterface
     {
         $formFactory = static::getContainer()->get('form.factory');
