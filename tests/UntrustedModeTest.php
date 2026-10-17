@@ -13,7 +13,13 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Validator\Constraints\All;
+use Symfony\Component\Validator\Constraints\AtLeastOneOf;
+use Symfony\Component\Validator\Constraints\Collection;
 use Symfony\Component\Validator\Constraints\Length;
+use Symfony\Component\Validator\Constraints\Optional;
+use Symfony\Component\Validator\Constraints\Required;
+use Symfony\Component\Validator\Constraints\Sequentially;
 
 final class UntrustedModeTest extends KernelTestCase
 {
@@ -216,7 +222,67 @@ final class UntrustedModeTest extends KernelTestCase
         $constraints = (new ConstraintFactory(true, [AppConstraint::class]))->getAvailableConstraints();
         $this->assertArrayNotHasKey('expression', $constraints);
         $this->assertArrayNotHasKey('callback', $constraints);
-        $this->assertSame(AppConstraint::class, $constraints['app_constraint']);
+        $this->assertSame(AppConstraint::class, $constraints[AppConstraint::class]);
+        $this->assertArrayNotHasKey('app_constraint', $constraints);
+    }
+
+    public function testAvailableConstraintKeysCanBeCreated(): void
+    {
+        $factory = new ConstraintFactory(true, [AppConstraint::class, 'expression']);
+
+        foreach ($factory->getAvailableConstraints() as $key => $class) {
+            $this->assertSame($class, $factory->resolveClass($key), $key);
+            $this->assertTrue($factory->isAllowed($class), $key);
+        }
+
+        $this->assertInstanceOf(AppConstraint::class, $factory->create(AppConstraint::class));
+        $this->assertInstanceOf(Length::class, $factory->create('length', ['max' => 3]));
+    }
+
+    public function testMetaConstraintsAreBlocked(): void
+    {
+        $factory = new ConstraintFactory(true);
+
+        foreach (['required', 'optional', 'traverse', 'cascade', 'enable_auto_mapping', 'disable_auto_mapping'] as $name) {
+            try {
+                $factory->create($name);
+                $this->fail(sprintf('The constraint "%s" should be blocked.', $name));
+            } catch (InvalidConfigurationException $e) {
+                $this->assertStringContainsString('not allowed in untrusted mode', $e->getMessage());
+            }
+
+            $this->assertArrayNotHasKey($name, $factory->getAvailableConstraints());
+        }
+
+        // Tampoco dentro de otra constraint que no sea el campo de una Collection
+        try {
+            $factory->create('all', ['constraints' => ['required' => []]]);
+            $this->fail('Required nested in All should be blocked.');
+        } catch (InvalidConfigurationException $e) {
+            $this->assertStringContainsString('not allowed in untrusted mode', $e->getMessage());
+        }
+    }
+
+    public function testCompositeConstraintsStillWork(): void
+    {
+        $factory = new ConstraintFactory(true);
+
+        $collection = $factory->create('collection', ['fields' => [
+            'email' => ['required' => ['constraints' => ['not_blank' => []]]],
+            'name' => ['optional' => ['constraints' => ['length' => ['max' => 3]]]],
+            'age' => ['positive' => []],
+        ]]);
+        \assert($collection instanceof Collection);
+
+        $this->assertInstanceOf(Required::class, $collection->fields['email']);
+        $this->assertInstanceOf(Optional::class, $collection->fields['name']);
+        $this->assertInstanceOf(All::class, $factory->create('all', ['constraints' => ['not_blank' => []]]));
+        $this->assertInstanceOf(Sequentially::class, $factory->create('sequentially', ['constraints' => ['not_blank' => []]]));
+        $this->assertInstanceOf(AtLeastOneOf::class, $factory->create('at_least_one_of', ['constraints' => ['email' => [], 'url' => []]]));
+
+        foreach (['all', 'collection', 'sequentially', 'at_least_one_of'] as $name) {
+            $this->assertArrayHasKey($name, $factory->getAvailableConstraints());
+        }
     }
 
     /**

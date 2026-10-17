@@ -439,6 +439,14 @@ final class FormGeneratorTest extends KernelTestCase
         $this->assertArrayHasKey('expression', $constraints);
         $this->assertArrayNotHasKey('length_validator', $constraints);
         $this->assertArrayNotHasKey('composite', $constraints);
+
+        // Meta constraints que no validan un campo
+        foreach (['required', 'optional', 'existence', 'traverse', 'cascade', 'enable_auto_mapping', 'disable_auto_mapping'] as $meta) {
+            $this->assertArrayNotHasKey($meta, $constraints);
+        }
+
+        // En modo confiable se pueden seguir creando
+        $this->assertInstanceOf(Required::class, (new ConstraintFactory())->create('required'));
     }
 
     private function getFormFactory(): FormFactoryInterface

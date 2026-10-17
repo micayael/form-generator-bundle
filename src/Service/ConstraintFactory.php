@@ -4,10 +4,14 @@ namespace Micayael\Bundle\FormGeneratorBundle\Service;
 
 use Micayael\Bundle\FormGeneratorBundle\Exception\InvalidConfigurationException;
 use Symfony\Component\Validator\Constraint;
+use Symfony\Component\Validator\Constraints\Cascade;
 use Symfony\Component\Validator\Constraints\Collection;
 use Symfony\Component\Validator\Constraints\DateTime;
+use Symfony\Component\Validator\Constraints\DisableAutoMapping;
+use Symfony\Component\Validator\Constraints\EnableAutoMapping;
 use Symfony\Component\Validator\Constraints\Existence;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Traverse;
 use Symfony\Component\Validator\Exception\ExceptionInterface as ValidatorExceptionInterface;
 
 use function Symfony\Component\String\u;
@@ -32,6 +36,16 @@ final class ConstraintFactory
         'Symfony\\Component\\Validator\\Constraints\\Callback',
         'Symfony\\Component\\Validator\\Constraints\\Expression',
         'Symfony\\Component\\Validator\\Constraints\\When',
+    ];
+
+    // Meta constraints que no validan un campo (fallan o no hacen nada en un campo de formulario).
+    // Required y Optional (Existence) solo tienen sentido como campo de una Collection.
+    public const META_CONSTRAINTS = [
+        Existence::class,
+        Traverse::class,
+        Cascade::class,
+        EnableAutoMapping::class,
+        DisableAutoMapping::class,
     ];
 
     // Opciones de constraints bloqueadas en modo untrusted: leen otros datos del objeto validado
@@ -70,6 +84,21 @@ final class ConstraintFactory
      */
     public function createMany(mixed $definitions): array
     {
+        return $this->createList($definitions, false);
+    }
+
+    public function create(string $name, mixed $options = []): Constraint
+    {
+        return $this->createConstraint($name, $options, false);
+    }
+
+    /**
+     * @param bool $collectionField la lista es la definición de un campo de una Collection (admite Required/Optional)
+     *
+     * @return list<Constraint>
+     */
+    private function createList(mixed $definitions, bool $collectionField): array
+    {
         if ($definitions instanceof Constraint) {
             return [$definitions];
         }
@@ -102,17 +131,17 @@ final class ConstraintFactory
                 continue;
             }
 
-            $constraints[] = $this->create($name, $options);
+            $constraints[] = $this->createConstraint($name, $options, $collectionField);
         }
 
         return $constraints;
     }
 
-    public function create(string $name, mixed $options = []): Constraint
+    private function createConstraint(string $name, mixed $options, bool $collectionField): Constraint
     {
         $class = $this->resolveClass($name);
 
-        if (!$this->isAllowed($class)) {
+        if (!$this->isAllowed($class) || ($this->untrusted && $this->isMeta($class) && !($collectionField && is_a($class, Existence::class, true)))) {
             throw new InvalidConfigurationException(sprintf('The constraint "%s" is not allowed in untrusted mode.', $name));
         }
 
@@ -201,8 +230,23 @@ final class ConstraintFactory
     }
 
     /**
+     * @param class-string<Constraint> $class
+     */
+    private function isMeta(string $class): bool
+    {
+        foreach (self::META_CONSTRAINTS as $meta) {
+            if (is_a($class, $meta, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Constraints disponibles (las de Symfony más $allowedConstraints) que pasan isAllowed(),
-     * indexadas por su alias en snake_case y ordenadas por alias.
+     * sin las meta constraints. Las de Symfony se indexan por su alias en snake_case y las demás
+     * por su FQCN (así cualquier clave se puede pasar de vuelta a create()). Ordenadas por clave.
      *
      * @return array<string, class-string<Constraint>>
      */
@@ -230,9 +274,15 @@ final class ConstraintFactory
         $constraints = [];
 
         foreach (array_unique($classes) as $class) {
-            if ($this->isAllowed($class)) {
-                $constraints[u((new \ReflectionClass($class))->getShortName())->snake()->toString()] = $class;
+            if (!$this->isAllowed($class) || $this->isMeta($class)) {
+                continue;
             }
+
+            $key = str_starts_with($class, self::CONSTRAINTS_NAMESPACE)
+                ? u((new \ReflectionClass($class))->getShortName())->snake()->toString()
+                : $class;
+
+            $constraints[$key] = $class;
         }
 
         ksort($constraints);
@@ -252,12 +302,12 @@ final class ConstraintFactory
 
         // Constraints anidadas: All, AtLeastOneOf, Sequentially, When, Required, Optional, ...
         if ('constraints' === $option) {
-            return $this->createMany($value);
+            return $this->createList($value, false);
         }
 
         if ('fields' === $option && is_a($class, Collection::class, true) && \is_array($value)) {
             return array_map(function (mixed $fieldConstraints): Constraint|array {
-                $constraints = $this->createMany($fieldConstraints);
+                $constraints = $this->createList($fieldConstraints, true);
 
                 // Required/Optional no pueden quedar envueltos en otro Required
                 return 1 === \count($constraints) && $constraints[0] instanceof Existence ? $constraints[0] : $constraints;
