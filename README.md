@@ -1,8 +1,7 @@
 micayael/form-generator-bundle
 ==============================
 
-[![Symfony 5](https://github.com/micayael/form-generator-bundle/actions/workflows/symfony5.yml/badge.svg)](https://github.com/micayael/form-generator-bundle/actions/workflows/symfony5.yml)
-[![Symfony 6](https://github.com/micayael/form-generator-bundle/actions/workflows/symfony6.yml/badge.svg)](https://github.com/micayael/form-generator-bundle/actions/workflows/symfony6.yml)
+[![CI](https://github.com/micayael/form-generator-bundle/actions/workflows/ci.yml/badge.svg?branch=1.x)](https://github.com/micayael/form-generator-bundle/actions/workflows/ci.yml?query=branch%3A1.x)
 [![Scrutinizer Quality Score](https://scrutinizer-ci.com/g/micayael/form-generator-bundle/badges/quality-score.png)](https://scrutinizer-ci.com/g/micayael/form-generator-bundle/)
 [![Packagist](https://img.shields.io/packagist/v/micayael/form-generator-bundle.svg)](https://packagist.org/packages/micayael/form-generator-bundle)
 ![License](https://img.shields.io/packagist/l/micayael/form-generator-bundle.svg)

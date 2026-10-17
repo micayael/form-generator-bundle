@@ -31,11 +31,10 @@ class FormGeneratorTest extends TestCase
             'birthday' => (new \DateTime())->format('Y-m-d'),
         ];
 
+        // Los campos vacíos no se comparan: según la versión de Symfony se agregan como null o no se agregan
         $this->expectedData = [
             'name' => 'Jhon Doe',
             'birthday' => (new \DateTime())->format('Y-m-d'),
-            'status' => null,
-            'custom_type' => null,
         ];
     }
 
@@ -48,48 +47,58 @@ class FormGeneratorTest extends TestCase
     {
         $formConfigArray = $this->getFormConfigAsArray();
 
-        $form = $this->formGeneratorService->createForm($formConfigArray, [], $this->originalData);
+        $form = $this->formGeneratorService->createForm($formConfigArray);
 
-        $form->submit($this->originalData);
+        $form->submit(['default_default' => $this->originalData]);
 
         $this->assertInstanceOf(FormInterface::class, $form);
 
         // This check ensures there are no transformation failures
         $this->assertTrue($form->isSynchronized());
 
-        $this->assertEquals($this->expectedData, $form->getData());
+        $this->assertEquals($this->expectedData, array_filter($form->getData(), static function ($value) { return null !== $value; }));
     }
 
     public function testFormFromJson()
     {
         $formConfigAsJson = $this->getFormConfigAsJson();
 
-        $form = $this->formGeneratorService->createFormFromJson($formConfigAsJson, [], $this->originalData);
+        $form = $this->formGeneratorService->createFormFromJson($formConfigAsJson);
 
-        $form->submit($this->originalData);
+        $form->submit(['default_default' => $this->originalData]);
 
         $this->assertInstanceOf(FormInterface::class, $form);
 
         // This check ensures there are no transformation failures
         $this->assertTrue($form->isSynchronized());
 
-        $this->assertEquals($this->expectedData, $form->getData());
+        $this->assertEquals($this->expectedData, array_filter($form->getData(), static function ($value) { return null !== $value; }));
     }
 
     public function testFormFromYaml()
     {
         $formConfigAsYaml = $this->getFormConfigAsYaml();
 
-        $form = $this->formGeneratorService->createFormFromYaml($formConfigAsYaml, [], $this->originalData);
+        $form = $this->formGeneratorService->createFormFromYaml($formConfigAsYaml);
 
-        $form->submit($this->originalData);
+        $form->submit(['default_default' => $this->originalData]);
 
         $this->assertInstanceOf(FormInterface::class, $form);
 
         // This check ensures there are no transformation failures
         $this->assertTrue($form->isSynchronized());
 
-        $this->assertEquals($this->expectedData, $form->getData());
+        $this->assertEquals($this->expectedData, array_filter($form->getData(), static function ($value) { return null !== $value; }));
+    }
+
+    public function testSubmittedDataOfGroupedFields()
+    {
+        $form = $this->formGeneratorService->createForm(['name' => null, 'city' => ['extras' => ['group' => 'Address']]]);
+
+        $form->submit(['default_default' => ['name' => 'Jhon'], 'address_default' => ['city' => 'Asuncion']]);
+
+        $this->assertTrue($form->isValid());
+        $this->assertEquals(['name' => 'Jhon', 'city' => 'Asuncion'], $form->getData());
     }
 
     public function testFormWithBaseFormClass()
@@ -108,7 +117,7 @@ class FormGeneratorTest extends TestCase
         $this->assertInstanceOf(FormInterface::class, $form);
 
         foreach ($formConfigArray as $typeName => $type) {
-            $this->assertTrue($form->has($typeName));
+            $this->assertTrue($form->get('default_default')->has($typeName));
         }
 
         foreach ($fixedFields as $fieldName) {

@@ -55,10 +55,9 @@ class FormGenerator
 
         foreach ($formConfig as $inputName => $inputConfig) {
             $inputType = isset($inputConfig['type']) ? $inputConfig['type'] : 'text';
-            $inputType = SupportedTypes::getSupportedClass($inputType);
 
-            // Se obtiene la configuración predeterminada
-            if (class_exists($inputType)) {
+            // Se obtiene la configuración predeterminada. Los alias tienen prioridad para no perder sus opciones por defecto
+            if (!isset(SupportedTypes::SUPPORTED_TYPES[$inputType]) && class_exists($inputType)) {
                 $inputDefaultConfig = [
                     'class' => $inputType,
                     'default_options' => [],
@@ -91,7 +90,8 @@ class FormGenerator
                 if(!$form->has($groupKey)){
                     $form->add($groupKey, FormType::class, [
                         'label' => $group === 'default' ? false : $group . sprintf(' (%s)', $groupKey),
-                        'mapped' => false,
+                        // Los campos del grupo se guardan en los datos del formulario padre
+                        'inherit_data' => true,
                     ]);
                 }
 
