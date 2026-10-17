@@ -32,6 +32,9 @@ class MicayaelFormGeneratorExtension extends Extension
             ->setArgument('$allowedClasses', $config['allowed_classes'])
             ->setArgument('$untrusted', $config['untrusted'])
             ->setArgument('$allowedOptions', $config['allowed_options'])
+            // Las constraints permitidas van en el ConstraintFactory. Se define igual porque
+            // Symfony DI < 5.4.x no acepta saltear argumentos intermedios
+            ->setArgument('$allowedConstraints', [])
             ->setArgument('$allowedHtmlAttributes', $config['allowed_html_attributes'])
         ;
 
