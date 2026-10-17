@@ -393,34 +393,7 @@ final class FormGenerator implements FormGeneratorInterface
         $objects = [];
 
         foreach ([$defaultConstraints, $inputConstraints] as $constraints) {
-            if ($constraints instanceof Constraint) {
-                $constraints = [$constraints];
-            }
-
-            $constraints ??= [];
-
-            if (!\is_array($constraints)) {
-                throw new InvalidConfigurationException(sprintf('The "constraints" option of the field "%s" must be an array, "%s" given.', $inputName, get_debug_type($constraints)));
-            }
-
-            foreach ($constraints as $name => $options) {
-                if ($options instanceof Constraint) {
-                    $objects[] = $options;
-
-                    continue;
-                }
-
-                if (\is_int($name)) {
-                    if (!\is_string($options)) {
-                        throw new InvalidConfigurationException(sprintf('Invalid constraint definition in the field "%s": expected a constraint name, "%s" given.', $inputName, get_debug_type($options)));
-                    }
-
-                    $name = $options;
-                    $options = [];
-                }
-
-                $definitions[$this->constraintFactory->resolveClass($name)] = $options;
-            }
+            $this->collectConstraints($inputName, $constraints, $definitions, $objects);
         }
 
         $result = [];
@@ -434,6 +407,42 @@ final class FormGenerator implements FormGeneratorInterface
         }
 
         return array_merge($result, $objects);
+    }
+
+    /**
+     * @param array<class-string<Constraint>, mixed> $definitions
+     * @param list<Constraint>                       $objects
+     */
+    private function collectConstraints(string $inputName, mixed $constraints, array &$definitions, array &$objects): void
+    {
+        if ($constraints instanceof Constraint) {
+            $constraints = [$constraints];
+        }
+
+        $constraints ??= [];
+
+        if (!\is_array($constraints)) {
+            throw new InvalidConfigurationException(sprintf('The "constraints" option of the field "%s" must be an array, "%s" given.', $inputName, get_debug_type($constraints)));
+        }
+
+        foreach ($constraints as $name => $options) {
+            if ($options instanceof Constraint) {
+                $objects[] = $options;
+
+                continue;
+            }
+
+            if (\is_int($name)) {
+                if (!\is_string($options)) {
+                    throw new InvalidConfigurationException(sprintf('Invalid constraint definition in the field "%s": expected a constraint name, "%s" given.', $inputName, get_debug_type($options)));
+                }
+
+                $name = $options;
+                $options = [];
+            }
+
+            $definitions[$this->constraintFactory->resolveClass($name)] = $options;
+        }
     }
 
     /**

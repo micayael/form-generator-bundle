@@ -56,26 +56,8 @@ final class ValidateConfigCommand extends Command
         $invalidFiles = 0;
 
         foreach ($files as $file) {
-            $format = 'json' === strtolower(pathinfo($file, \PATHINFO_EXTENSION)) ? 'json' : 'yaml';
-
-            $errors = $this->formGenerator->validateConfig(
-                (string) file_get_contents($file),
-                $format,
-                baseFormTypeClass: \is_string($baseType) ? $baseType : null,
-                groupName: \is_string($group) ? $group : null,
-            );
-
-            if (!$errors) {
-                $io->writeln(sprintf('<info>[OK]</info> %s', $file));
-
-                continue;
-            }
-
-            ++$invalidFiles;
-            $io->writeln(sprintf('<error>[ERROR]</error> %s', $file));
-
-            foreach ($errors as $field => $message) {
-                $io->writeln(sprintf('  - %s%s', '' === $field ? '' : $field.': ', $message));
+            if (!$this->validateFile($file, \is_string($baseType) ? $baseType : null, \is_string($group) ? $group : null, $io)) {
+                ++$invalidFiles;
             }
         }
 
@@ -90,6 +72,32 @@ final class ValidateConfigCommand extends Command
         $io->success(sprintf('%d file(s) are valid.', \count($files)));
 
         return Command::SUCCESS;
+    }
+
+    private function validateFile(string $file, ?string $baseType, ?string $group, SymfonyStyle $io): bool
+    {
+        $format = 'json' === strtolower(pathinfo($file, \PATHINFO_EXTENSION)) ? 'json' : 'yaml';
+
+        $errors = $this->formGenerator->validateConfig(
+            (string) file_get_contents($file),
+            $format,
+            baseFormTypeClass: $baseType,
+            groupName: $group,
+        );
+
+        if (!$errors) {
+            $io->writeln(sprintf('<info>[OK]</info> %s', $file));
+
+            return true;
+        }
+
+        $io->writeln(sprintf('<error>[ERROR]</error> %s', $file));
+
+        foreach ($errors as $field => $message) {
+            $io->writeln(sprintf('  - %s%s', '' === $field ? '' : $field.': ', $message));
+        }
+
+        return false;
     }
 
     /**
