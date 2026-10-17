@@ -115,6 +115,32 @@ final class FormGenerator implements FormGeneratorInterface
         return $this->types;
     }
 
+    public function isUntrusted(): bool
+    {
+        return $this->untrusted;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getAllowedClasses(): array
+    {
+        return $this->allowedClasses;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getAllowedOptions(): array
+    {
+        return $this->allowedOptions;
+    }
+
+    public function getConstraintFactory(): ConstraintFactory
+    {
+        return $this->constraintFactory;
+    }
+
     public function validateConfig(array|string $formConfig, string $format = 'yaml', array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null): array
     {
         try {

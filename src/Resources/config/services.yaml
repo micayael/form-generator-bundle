@@ -12,3 +12,8 @@ services:
   micayael.form_generator:
     alias: Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator
     public: true
+
+  Micayael\Bundle\FormGeneratorBundle\Service\SchemaProvider:
+    arguments:
+      $formRegistry: '@form.registry'
+    public: true

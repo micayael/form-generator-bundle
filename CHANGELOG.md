@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.1.0 (2026-10-17)
+
+### Added
+
+- `SchemaProvider::getSchema(FormGenerator)` returns a JSON-serializable description of the form types, their
+  options and the allowed constraints (respecting untrusted mode), for visual form editors.
+- `ConstraintFactory::getAvailableConstraints()` lists the usable constraints: Symfony ones by their snake_case
+  name and the non-Symfony `allowed_constraints` by their FQCN, so every key can be passed back to `create()`.
+  Meta constraints that don't validate a field (`Required`, `Optional`, `Traverse`, `Cascade`,
+  `EnableAutoMapping`, `DisableAutoMapping`) are not listed.
+
+### Changed
+
+- In untrusted mode the meta constraints above are rejected ("not allowed in untrusted mode"), except
+  `Required`/`Optional` as the definition of a `collection` field.
+
 ## 2.0.0 (2026-10-17)
 
 ### Requirements

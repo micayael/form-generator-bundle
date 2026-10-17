@@ -422,6 +422,33 @@ final class FormGeneratorTest extends KernelTestCase
         $this->assertSame($expected, array_map(static fn (Constraint $constraint): string => $constraint::class, $constraints));
     }
 
+    public function testAccessors(): void
+    {
+        $generator = new FormGenerator($this->getFormFactory(), allowedClasses: ['\\'.DemoFormType::class], allowedOptions: ['label_html']);
+        $this->assertFalse($generator->isUntrusted());
+        $this->assertSame([DemoFormType::class], $generator->getAllowedClasses());
+        $this->assertSame(['label_html'], $generator->getAllowedOptions());
+        $this->assertInstanceOf(ConstraintFactory::class, $generator->getConstraintFactory());
+    }
+
+    public function testAvailableConstraints(): void
+    {
+        $constraints = (new ConstraintFactory())->getAvailableConstraints();
+        $this->assertSame(Length::class, $constraints['length']);
+        $this->assertSame(NotBlank::class, $constraints['not_blank']);
+        $this->assertArrayHasKey('expression', $constraints);
+        $this->assertArrayNotHasKey('length_validator', $constraints);
+        $this->assertArrayNotHasKey('composite', $constraints);
+
+        // Meta constraints que no validan un campo
+        foreach (['required', 'optional', 'existence', 'traverse', 'cascade', 'enable_auto_mapping', 'disable_auto_mapping'] as $meta) {
+            $this->assertArrayNotHasKey($meta, $constraints);
+        }
+
+        // En modo confiable se pueden seguir creando
+        $this->assertInstanceOf(Required::class, (new ConstraintFactory())->create('required'));
+    }
+
     private function getFormFactory(): FormFactoryInterface
     {
         $formFactory = static::getContainer()->get('form.factory');
