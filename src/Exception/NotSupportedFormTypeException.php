@@ -2,18 +2,22 @@
 
 namespace Micayael\Bundle\FormGeneratorBundle\Exception;
 
-use Micayael\Bundle\FormGeneratorBundle\Config\SupportedTypes;
-
-class NotSupportedFormTypeException extends \Exception
+class NotSupportedFormTypeException extends \InvalidArgumentException implements ExceptionInterface
 {
-    public function __construct(string $inputType)
+    /**
+     * @param list<string> $supportedTypes
+     */
+    public static function unknown(string $inputType, array $supportedTypes): self
     {
-        $message = sprintf(
-            'Tipo de formulario "%s" no soportado. Tipos soportados: %s',
+        return new self(sprintf(
+            'Form type "%s" is not supported. Use one of the aliases "%s" or the FQCN of a form type.',
             $inputType,
-            implode(',', array_keys(SupportedTypes::SUPPORTED_TYPES))
-        );
+            implode('", "', $supportedTypes)
+        ));
+    }
 
-        parent::__construct($message);
+    public static function notAllowed(string $inputType): self
+    {
+        return new self(sprintf('Form type "%s" is not in the "allowed_classes" list.', $inputType));
     }
 }

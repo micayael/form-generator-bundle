@@ -1,13 +1,13 @@
 services:
 
-  _defaults:
-    autowire: true
-    autoconfigure: true
+  Micayael\Bundle\FormGeneratorBundle\Service\ConstraintFactory: ~
 
-  Micayael\Bundle\FormGeneratorBundle\Service\TestService: ~
   Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator:
-    arguments: ['@form.factory']
-  Micayael\Bundle\FormGeneratorBundle\Config\SupportedTypes: ~
+    arguments:
+      $formFactory: '@form.factory'
+      $constraintFactory: '@Micayael\Bundle\FormGeneratorBundle\Service\ConstraintFactory'
+
+  Micayael\Bundle\FormGeneratorBundle\Service\FormGeneratorInterface: '@Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator'
 
   micayael.form_generator:
     alias: Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator

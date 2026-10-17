@@ -3,136 +3,338 @@
 namespace Micayael\Bundle\FormGeneratorBundle\Service;
 
 use Micayael\Bundle\FormGeneratorBundle\Config\SupportedTypes;
+use Micayael\Bundle\FormGeneratorBundle\Exception\InvalidConfigurationException;
+use Micayael\Bundle\FormGeneratorBundle\Exception\NotSupportedFormTypeException;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
+use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\Form\FormTypeInterface;
 use Symfony\Component\String\Slugger\AsciiSlugger;
-use Symfony\Component\Validator\Constraints\Date;
-use Symfony\Component\Validator\Constraints\Email;
-use Symfony\Component\Validator\Constraints\Length;
+use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\Constraints\NotBlank;
-use Symfony\Component\Validator\Constraints\Url;
+use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
-class FormGenerator
+final class FormGenerator implements FormGeneratorInterface
 {
-    /** @var FormFactoryInterface */
-    public $formFactory;
+    private const FIELD_KEYS = ['type', 'options', 'extras'];
 
-    public function __construct(FormFactoryInterface $formFactory)
-    {
-        $this->formFactory = $formFactory;
+    // Opciones de form types que Symfony invoca si reciben un callable en forma de array ([clase, método])
+    private const ARRAY_CALLABLE_OPTIONS = ['validation_groups', 'choice_label', 'choice_value', 'choice_name', 'choice_attr', 'choice_filter', 'choice_translation_parameters', 'group_by', 'preferred_choices'];
+
+    // Opciones de form types que solo aceptan callables
+    private const CALLABLE_OPTIONS = ['getter', 'setter'];
+
+    /** @var array<string, array{class: string, default_options: array<string, mixed>}> */
+    private readonly array $types;
+
+    /** @var list<string> */
+    private readonly array $allowedClasses;
+
+    private readonly ConstraintFactory $constraintFactory;
+
+    private readonly AsciiSlugger $slugger;
+
+    /**
+     * @param array<string, array{class?: ?string, default_options?: array<string, mixed>}> $types          custom aliases or overrides of the built-in ones
+     * @param list<string>                                                                  $allowedClasses if not empty, the only FQCN form types allowed in the "type" key
+     */
+    public function __construct(
+        private readonly FormFactoryInterface $formFactory,
+        array $types = [],
+        array $allowedClasses = [],
+        ?ConstraintFactory $constraintFactory = null,
+    ) {
+        $this->types = $this->mergeTypes(SupportedTypes::SUPPORTED_TYPES, $types);
+        $this->allowedClasses = array_map(static fn (string $class): string => ltrim($class, '\\'), $allowedClasses);
+        $this->constraintFactory = $constraintFactory ?? new ConstraintFactory();
+        $this->slugger = new AsciiSlugger();
     }
 
-    public function createFormFromYaml(string $formConfigYaml, array $formOptions = [], $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null): ?FormInterface
+    public function createFormFromYaml(string $formConfigYaml, array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null, ?string $formName = null): FormInterface
     {
-        $array = Yaml::parse($formConfigYaml);
-        $json = json_encode($array);
-
-        return $this->createFormFromJson($json, $formOptions, $data, $baseFormTypeClass, $groupName);
-    }
-
-    public function createFormFromJson(string $formConfigJson, array $formOptions = [], $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null): ?FormInterface
-    {
-        $formConfig = json_decode($formConfigJson, true);
-
-        return $this->createForm($formConfig, $formOptions, $data, $baseFormTypeClass, $groupName);
-    }
-
-    public function createForm(array $formConfig, array $formOptions = [], $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null): ?FormInterface
-    {
-        if (empty($formConfig)) {
-            return null;
+        try {
+            $formConfig = Yaml::parse($formConfigYaml);
+        } catch (ParseException $e) {
+            throw new InvalidConfigurationException(sprintf('Invalid YAML form configuration: %s', $e->getMessage()), 0, $e);
         }
 
-        $baseFormTypeClass = $baseFormTypeClass ?: FormType::class;
+        return $this->createForm($this->ensureArray($formConfig, 'YAML'), $formOptions, $data, $baseFormTypeClass, $groupName, $formName);
+    }
 
-        $form = $this->formFactory->create($baseFormTypeClass, $data, $formOptions);
+    public function createFormFromJson(string $formConfigJson, array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null, ?string $formName = null): FormInterface
+    {
+        try {
+            $formConfig = json_decode($formConfigJson, true, 512, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new InvalidConfigurationException(sprintf('Invalid JSON form configuration: %s', $e->getMessage()), 0, $e);
+        }
+
+        return $this->createForm($this->ensureArray($formConfig, 'JSON'), $formOptions, $data, $baseFormTypeClass, $groupName, $formName);
+    }
+
+    public function createForm(array $formConfig, array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null, ?string $formName = null): FormInterface
+    {
+        return $this->createFormBuilder($formConfig, $formOptions, $data, $baseFormTypeClass, $groupName, $formName)->getForm();
+    }
+
+    public function createFormBuilder(array $formConfig, array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null, ?string $formName = null): FormBuilderInterface
+    {
+        $baseFormTypeClass ??= FormType::class;
+
+        $builder = null === $formName
+            ? $this->formFactory->createBuilder($baseFormTypeClass, $data, $formOptions)
+            : $this->formFactory->createNamedBuilder($formName, $baseFormTypeClass, $data, $formOptions);
+
+        // Los campos generados se agregan dentro de un formulario embebido
+        $rootBuilder = $builder;
 
         if ($groupName) {
-            $form->add($groupName, FormType::class);
+            if (!$builder->has($groupName)) {
+                $builder->add($groupName, FormType::class);
+            }
+
+            $rootBuilder = $builder->get($groupName);
         }
+
+        // Claves de los grupos creados por extras.group / extras.position
+        $groupKeys = [];
 
         foreach ($formConfig as $inputName => $inputConfig) {
-            $inputType = isset($inputConfig['type']) ? $inputConfig['type'] : 'text';
-            $inputType = SupportedTypes::getSupportedClass($inputType);
+            $inputName = (string) $inputName;
+            $inputConfig = $this->normalizeInputConfig($inputName, $inputConfig);
+            $typeConfig = $this->resolveType($inputConfig['type']);
 
-            // Se obtiene la configuración predeterminada
-            if (class_exists($inputType)) {
-                $inputDefaultConfig = [
-                    'class' => $inputType,
-                    'default_options' => [],
-                ];
-            } else {
-                $inputDefaultConfig = SupportedTypes::getDefaultTypeConfig($inputType);
-            }
-
-            // se obtienen las opciones definidas para este input
-            $inputOptions = isset($inputConfig['options']) ? $inputConfig['options'] : [];
-
-            $inputOptions['constraints'] = $this->getConstraints($inputType, $inputDefaultConfig['default_options'], $inputOptions);
+            $this->assertNoCallableOptions($inputName, $inputConfig['options']);
 
             // Se compilan las opciones default con las definidas
-            $inputOptions = array_merge(
-                $inputDefaultConfig['default_options'],
-                $inputOptions
+            $inputOptions = array_replace($typeConfig['default_options'], $inputConfig['options']);
+
+            $constraints = $this->buildConstraints(
+                $inputName,
+                $typeConfig['default_options']['constraints'] ?? [],
+                $inputConfig['options']['constraints'] ?? [],
+                false !== ($inputOptions['required'] ?? true)
             );
 
-            // Se crea el input de formulario
-            if ($groupName) {
-                $form->get($groupName)->add($inputName, $inputDefaultConfig['class'], $inputOptions);
-            } else {
-                $group = $inputConfig['extras']['group'] ?? 'default';
-                $position = $inputConfig['extras']['position'] ?? 'default';
+            // Sin constraints se respetan los defaults propios del form type
+            unset($inputOptions['constraints']);
 
-                $slugger = new AsciiSlugger();
-                $groupKey = strtolower($slugger->slug($group.'_'.$position, '_'));
-
-                if(!$form->has($groupKey)){
-                    $form->add($groupKey, FormType::class, [
-                        'label' => $group === 'default' ? false : $group . sprintf(' (%s)', $groupKey),
-                        'mapped' => false,
-                    ]);
-                }
-
-                $form->get($groupKey)->add($inputName, $inputDefaultConfig['class'], $inputOptions);
+            if ($constraints) {
+                $inputOptions['constraints'] = $constraints;
             }
+
+            if (isset($groupKeys[$inputName]) && !isset($inputConfig['extras']['group']) && !isset($inputConfig['extras']['position'])) {
+                throw new InvalidConfigurationException(sprintf('The field "%s" collides with the group of the same name.', $inputName));
+            }
+
+            $this->resolveParentBuilder($rootBuilder, $inputConfig['extras'], $groupKeys)
+                ->add($inputName, $typeConfig['class'], $inputOptions);
         }
 
-        return $form;
+        return $builder;
     }
 
-    private function getConstraints(string $inputType, array $inputDefaultOptions, array $inputOptions)
+    /**
+     * @param array<string, array{class: string, default_options: array<string, mixed>}>    $builtInTypes
+     * @param array<string, array{class?: ?string, default_options?: array<string, mixed>}> $customTypes
+     *
+     * @return array<string, array{class: string, default_options: array<string, mixed>}>
+     */
+    private function mergeTypes(array $builtInTypes, array $customTypes): array
     {
-        $ret = [];
+        foreach ($customTypes as $alias => $typeConfig) {
+            $base = $builtInTypes[$alias] ?? ['class' => null, 'default_options' => []];
+            $class = $typeConfig['class'] ?? $base['class'];
 
-        $validations = isset($inputDefaultOptions['constraints']) ? $inputDefaultOptions['constraints'] : [];
-        $validations = array_merge($validations, isset($inputOptions['constraints']) ? $inputOptions['constraints'] : []);
+            if (!$class) {
+                throw new InvalidConfigurationException(sprintf('The custom type "%s" must define a "class".', $alias));
+            }
 
-        foreach ($validations as $validation => $validationOptions) {
-            switch ($validation) {
-                case 'not_blank':
-                    if (isset($inputOptions['required']) && false === $inputOptions['required']) {
-                        // no se setea la validación
-                    } else {
-                        $ret[] = new NotBlank($validationOptions);
-                    }
-                    break;
-                case 'email':
-                    $ret[] = new Email($validationOptions);
-                    break;
-                case 'url':
-                    $ret[] = new Url($validationOptions);
-                    break;
-                case 'length':
-                    $ret[] = new Length($validationOptions);
-                    break;
-                case 'date':
-                    $ret[] = new Date($validationOptions);
-                    break;
+            $builtInTypes[$alias] = [
+                'class' => $class,
+                'default_options' => array_replace($base['default_options'], $typeConfig['default_options'] ?? []),
+            ];
+        }
+
+        return $builtInTypes;
+    }
+
+    /**
+     * @return array<string|int, mixed>
+     */
+    private function ensureArray(mixed $formConfig, string $format): array
+    {
+        if (null === $formConfig) {
+            return [];
+        }
+
+        if (!\is_array($formConfig)) {
+            throw new InvalidConfigurationException(sprintf('The %s form configuration must be a map of fields, "%s" given.', $format, get_debug_type($formConfig)));
+        }
+
+        return $formConfig;
+    }
+
+    /**
+     * @return array{type: string, options: array<string, mixed>, extras: array<string, mixed>}
+     */
+    private function normalizeInputConfig(string $inputName, mixed $inputConfig): array
+    {
+        $inputConfig ??= [];
+
+        if (!\is_array($inputConfig)) {
+            throw new InvalidConfigurationException(sprintf('The configuration of the field "%s" must be an array or null, "%s" given.', $inputName, get_debug_type($inputConfig)));
+        }
+
+        $unknownKeys = array_diff(array_keys($inputConfig), self::FIELD_KEYS);
+
+        if ($unknownKeys) {
+            throw new InvalidConfigurationException(sprintf('Unknown key(s) "%s" in the configuration of the field "%s". Allowed keys: "%s".', implode('", "', $unknownKeys), $inputName, implode('", "', self::FIELD_KEYS)));
+        }
+
+        $type = $inputConfig['type'] ?? 'text';
+        $options = $inputConfig['options'] ?? [];
+        $extras = $inputConfig['extras'] ?? [];
+
+        if (!\is_string($type)) {
+            throw new InvalidConfigurationException(sprintf('The "type" of the field "%s" must be a string, "%s" given.', $inputName, get_debug_type($type)));
+        }
+
+        foreach (['options' => $options, 'extras' => $extras] as $key => $value) {
+            if (!\is_array($value)) {
+                throw new InvalidConfigurationException(sprintf('The "%s" of the field "%s" must be an array, "%s" given.', $key, $inputName, get_debug_type($value)));
             }
         }
 
-        return $ret;
+        return ['type' => $type, 'options' => $options, 'extras' => $extras];
+    }
+
+    /**
+     * @return array{class: string, default_options: array<string, mixed>}
+     */
+    private function resolveType(string $type): array
+    {
+        if (isset($this->types[$type])) {
+            return $this->types[$type];
+        }
+
+        if (!class_exists($type) || !is_subclass_of($type, FormTypeInterface::class) || !(new \ReflectionClass($type))->isInstantiable()) {
+            throw NotSupportedFormTypeException::unknown($type, array_keys($this->types));
+        }
+
+        if ($this->allowedClasses && !\in_array(ltrim($type, '\\'), $this->allowedClasses, true)) {
+            throw NotSupportedFormTypeException::notAllowed($type);
+        }
+
+        return ['class' => $type, 'default_options' => []];
+    }
+
+    /**
+     * Las constraints pueden definirse como "nombre: opciones", como una lista de nombres
+     * o como objetos Constraint. Con "nombre: false" se desactiva una constraint por defecto.
+     * Las definidas por nombre se identifican por su clase, así no se duplican.
+     *
+     * @return list<Constraint>
+     */
+    private function buildConstraints(string $inputName, mixed $defaultConstraints, mixed $inputConstraints, bool $required): array
+    {
+        $definitions = [];
+        $objects = [];
+
+        foreach ([$defaultConstraints, $inputConstraints] as $constraints) {
+            if ($constraints instanceof Constraint) {
+                $constraints = [$constraints];
+            }
+
+            $constraints ??= [];
+
+            if (!\is_array($constraints)) {
+                throw new InvalidConfigurationException(sprintf('The "constraints" option of the field "%s" must be an array, "%s" given.', $inputName, get_debug_type($constraints)));
+            }
+
+            foreach ($constraints as $name => $options) {
+                if ($options instanceof Constraint) {
+                    $objects[] = $options;
+
+                    continue;
+                }
+
+                if (\is_int($name)) {
+                    if (!\is_string($options)) {
+                        throw new InvalidConfigurationException(sprintf('Invalid constraint definition in the field "%s": expected a constraint name, "%s" given.', $inputName, get_debug_type($options)));
+                    }
+
+                    $name = $options;
+                    $options = [];
+                }
+
+                $definitions[$this->constraintFactory->resolveClass($name)] = $options;
+            }
+        }
+
+        $result = [];
+
+        foreach ($definitions as $class => $options) {
+            if (false === $options || (NotBlank::class === $class && !$required)) {
+                continue;
+            }
+
+            $result[] = $this->constraintFactory->create($class, $options);
+        }
+
+        return array_merge($result, $objects);
+    }
+
+    /**
+     * Por seguridad, los callables solo se aceptan como Closure (definidos en PHP, no en YAML/JSON).
+     *
+     * @param array<string, mixed> $options
+     */
+    private function assertNoCallableOptions(string $inputName, array $options): void
+    {
+        foreach ($options as $option => $value) {
+            $isArrayCallable = \in_array($option, self::ARRAY_CALLABLE_OPTIONS, true) && \is_array($value) && \is_callable($value);
+            $isCallable = \in_array($option, self::CALLABLE_OPTIONS, true) && null !== $value && !$value instanceof \Closure;
+
+            if ($isArrayCallable || $isCallable) {
+                throw new InvalidConfigurationException(sprintf('The option "%s" of the field "%s" only accepts a callable as a \Closure.', $option, $inputName));
+            }
+        }
+    }
+
+    /**
+     * Agrupa el campo según "extras.group" y "extras.position". Los grupos usan inherit_data,
+     * por lo que los datos de sus campos quedan en el formulario padre.
+     *
+     * @param array<string, mixed> $extras
+     * @param array<string, true>  $groupKeys claves de los grupos ya creados
+     */
+    private function resolveParentBuilder(FormBuilderInterface $builder, array $extras, array &$groupKeys): FormBuilderInterface
+    {
+        if (!isset($extras['group']) && !isset($extras['position'])) {
+            return $builder;
+        }
+
+        $group = (string) ($extras['group'] ?? 'default');
+        $position = (string) ($extras['position'] ?? 'default');
+
+        $groupKey = strtolower((string) $this->slugger->slug($group.'_'.$position, '_'));
+
+        if (!isset($groupKeys[$groupKey])) {
+            if ($builder->has($groupKey)) {
+                throw new InvalidConfigurationException(sprintf('The group "%s" collides with the field of the same name.', $groupKey));
+            }
+
+            $groupKeys[$groupKey] = true;
+
+            $builder->add($groupKey, FormType::class, [
+                'label' => 'default' === $group ? false : $group,
+                'inherit_data' => true,
+            ]);
+        }
+
+        return $builder->get($groupKey);
     }
 }

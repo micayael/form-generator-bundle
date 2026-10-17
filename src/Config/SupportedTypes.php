@@ -2,7 +2,6 @@
 
 namespace Micayael\Bundle\FormGeneratorBundle\Config;
 
-use Micayael\Bundle\FormGeneratorBundle\Exception\NotSupportedFormTypeException;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CountryType;
@@ -25,7 +24,7 @@ use Symfony\Component\Form\Extension\Core\Type\TimezoneType;
 use Symfony\Component\Form\Extension\Core\Type\UrlType;
 use Symfony\Component\Form\Extension\Core\Type\UuidType;
 
-class SupportedTypes
+final class SupportedTypes
 {
     public const SUPPORTED_TYPES = [
         // Texts
@@ -251,22 +250,4 @@ class SupportedTypes
             ],
         ],
     ];
-
-    public static function getDefaultTypeConfig(string $inputType): array
-    {
-        if (!isset(self::SUPPORTED_TYPES[$inputType])) {
-            throw new NotSupportedFormTypeException($inputType);
-        }
-
-        return self::SUPPORTED_TYPES[$inputType];
-    }
-
-    public static function getSupportedClass(string $inputType): ?string
-    {
-        if(!isset(self::SUPPORTED_TYPES[$inputType])){
-            return $inputType;
-        }else{
-            return self::SUPPORTED_TYPES[$inputType]['class'];
-        }
-    }
 }

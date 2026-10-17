@@ -1,7 +1,16 @@
 {
     "name": "micayael/form-generator-bundle",
     "type": "symfony-bundle",
-    "description": "Bundle para el generar formularios mediante yaml y json",
+    "description": "Generate Symfony forms from YAML, JSON or PHP array configurations",
+    "keywords": [
+        "symfony",
+        "bundle",
+        "form",
+        "form-generator",
+        "yaml",
+        "json",
+        "dynamic-forms"
+    ],
     "license": "MIT",
     "authors": [
         {
@@ -10,22 +19,25 @@
         }
     ],
     "require": {
-        "php": "^7.4|^8.0",
         "ext-json": "*",
-        "symfony/config": "^5.1|^6.0|^7.0",
-        "symfony/dependency-injection": "^5.1|^6.0|^7.0",
-        "symfony/form": "^5.1|^6.0|^7.0",
-        "symfony/http-kernel": "^5.1|^6.0|^7.0",
-        "symfony/validator": "^5.1|^6.0|^7.0",
-        "symfony/yaml": "^5.1|^6.0|^7.0"
+        "php": ">=8.1",
+        "symfony/config": "^5.4|^6.4|^7.4|^8.0",
+        "symfony/dependency-injection": "^5.4|^6.4|^7.4|^8.0",
+        "symfony/form": "^5.4|^6.4|^7.4|^8.0",
+        "symfony/http-kernel": "^5.4|^6.4|^7.4|^8.0",
+        "symfony/string": "^5.4|^6.4|^7.4|^8.0",
+        "symfony/validator": "^5.4|^6.4|^7.4|^8.0",
+        "symfony/yaml": "^5.4|^6.4|^7.4|^8.0"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^2.0|^3.1",
+        "friendsofphp/php-cs-fixer": "^3.1",
         "phpmd/phpmd": "@stable",
-        "phpstan/phpstan": "^1.4",
-        "symfony/framework-bundle": "^5.1|^6.0|^7.0",
-        "symfony/test-pack": "^1.0",
-        "symfony/var-dumper": "^5.1|^6.0|^7.0"
+        "phpstan/phpstan": "^1.4|^2.0",
+        "phpunit/phpunit": "^9.6|^10.5|^11.0|^12.0",
+        "symfony/framework-bundle": "^5.4|^6.4|^7.4|^8.0",
+        "symfony/runtime": "^5.4|^6.4|^7.4|^8.0",
+        "symfony/test-pack": "^1.1",
+        "symfony/var-dumper": "^5.4|^6.4|^7.4|^8.0"
     },
     "autoload": {
         "psr-4": {
@@ -39,6 +51,13 @@
     },
     "config": {
         "sort-packages": true,
-        "allow-plugins": {}
+        "allow-plugins": {
+            "symfony/runtime": false
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "phpstan": "phpstan analyse",
+        "cs": "php-cs-fixer fix --dry-run --diff"
     }
 }

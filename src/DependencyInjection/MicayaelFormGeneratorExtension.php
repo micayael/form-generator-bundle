@@ -2,6 +2,7 @@
 
 namespace Micayael\Bundle\FormGeneratorBundle\DependencyInjection;
 
+use Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -18,5 +19,10 @@ class MicayaelFormGeneratorExtension extends Extension
         $config = $this->processConfiguration($configuration, $configs);
 
         $container->setParameter('micayael_form_generator_bundle_config', $config);
+
+        $container->getDefinition(FormGenerator::class)
+            ->setArgument('$types', $config['types'])
+            ->setArgument('$allowedClasses', $config['allowed_classes'])
+        ;
     }
 }

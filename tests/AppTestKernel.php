@@ -5,7 +5,6 @@ namespace Micayael\Bundle\FormGeneratorBundle\Tests;
 use Micayael\Bundle\FormGeneratorBundle\MicayaelFormGeneratorBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
-use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 use Symfony\Component\HttpKernel\Kernel as BaseKernel;
 
@@ -21,18 +20,27 @@ class AppTestKernel extends BaseKernel
         ];
     }
 
+    // Cache separada por versión de Symfony para poder alternar versiones localmente
+    public function getCacheDir(): string
+    {
+        return sys_get_temp_dir().'/micayael_form_generator_bundle/'.BaseKernel::VERSION.'/cache';
+    }
+
+    public function getLogDir(): string
+    {
+        return sys_get_temp_dir().'/micayael_form_generator_bundle/'.BaseKernel::VERSION.'/log';
+    }
+
     protected function configureContainer(ContainerConfigurator $c): void
     {
         $c->extension('framework', [
             'secret' => 'devsecret',
-            'router' => [
-                'utf8' => true,
+            'test' => true,
+            'http_method_override' => false,
+            'csrf_protection' => false,
+            'validation' => [
+                'email_validation_mode' => 'html5',
             ],
         ]);
-    }
-
-    public function registerContainerConfiguration(LoaderInterface $loader)
-    {
-        // TODO: Implement registerContainerConfiguration() method.
     }
 }
