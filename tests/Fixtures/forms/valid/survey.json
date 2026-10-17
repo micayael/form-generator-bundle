@@ -1,0 +1,9 @@
+{
+  "rating": {
+    "type": "choice",
+    "options": {
+      "choices": { "Good": 3, "Regular": 2, "Bad": 1 }
+    }
+  },
+  "comments": { "type": "textarea", "options": { "required": false } }
+}

@@ -31,6 +31,9 @@ final class ConstraintFactory
         'Symfony\\Component\\Validator\\Constraints\\When',
     ];
 
+    // Opciones de constraints bloqueadas en modo untrusted: leen otros datos del objeto validado
+    public const UNTRUSTED_BLOCKED_CONSTRAINT_OPTIONS = ['propertyPath', 'minPropertyPath', 'maxPropertyPath'];
+
     /** @var array<class-string<Constraint>, array<string, \ReflectionParameter>> */
     private array $constructorParameters = [];
 
@@ -113,6 +116,12 @@ final class ConstraintFactory
 
         if (!\is_array($options)) {
             throw new InvalidConfigurationException(sprintf('The options of the constraint "%s" must be an array, "%s" given.', $name, get_debug_type($options)));
+        }
+
+        $blockedOptions = $this->untrusted ? array_intersect(array_keys($options), self::UNTRUSTED_BLOCKED_CONSTRAINT_OPTIONS) : [];
+
+        if ($blockedOptions) {
+            throw new InvalidConfigurationException(sprintf('The option(s) "%s" of the constraint "%s" are not allowed in untrusted mode.', implode('", "', $blockedOptions), $name));
         }
 
         $parameters = $this->getConstructorParameters($class);

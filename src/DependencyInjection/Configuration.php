@@ -50,6 +50,10 @@ class Configuration implements ConfigurationInterface
                     ->info('Constraints (name or FQCN) allowed anyway in untrusted mode (e.g. your own constraints)')
                     ->scalarPrototype()->end()
                 ->end()
+                ->arrayNode('allowed_html_attributes')
+                    ->info('HTML attributes allowed anyway in untrusted mode, besides the safe ones. Values ending with "-" are prefixes (e.g. data-)')
+                    ->scalarPrototype()->end()
+                ->end()
             ->end()
         ;
 

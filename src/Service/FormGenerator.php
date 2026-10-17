@@ -3,13 +3,17 @@
 namespace Micayael\Bundle\FormGeneratorBundle\Service;
 
 use Micayael\Bundle\FormGeneratorBundle\Config\SupportedTypes;
+use Micayael\Bundle\FormGeneratorBundle\Exception\ExceptionInterface;
 use Micayael\Bundle\FormGeneratorBundle\Exception\InvalidConfigurationException;
 use Micayael\Bundle\FormGeneratorBundle\Exception\NotSupportedFormTypeException;
+use Symfony\Component\Form\Exception\ExceptionInterface as FormExceptionInterface;
 use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormTypeInterface;
+use Symfony\Component\OptionsResolver\Debug\OptionsResolverIntrospector;
+use Symfony\Component\OptionsResolver\Exception\ExceptionInterface as OptionsResolverExceptionInterface;
 use Symfony\Component\String\Slugger\AsciiSlugger;
 use Symfony\Component\Validator\Constraint;
 use Symfony\Component\Validator\Constraints\NotBlank;
@@ -20,11 +24,17 @@ final class FormGenerator implements FormGeneratorInterface
 {
     private const FIELD_KEYS = ['type', 'options', 'extras'];
 
-    // Opciones de form types que Symfony invoca si reciben un callable en forma de array ([clase, método])
-    private const ARRAY_CALLABLE_OPTIONS = ['validation_groups', 'choice_label', 'choice_value', 'choice_name', 'choice_attr', 'choice_filter', 'choice_translation_parameters', 'group_by', 'preferred_choices'];
+    // Opciones que Symfony invoca si reciben un callable en forma de array, sin declararlo en sus tipos
+    private const UNTYPED_ARRAY_CALLABLE_OPTIONS = ['validation_groups'];
 
-    // Opciones de form types que solo aceptan callables
-    private const CALLABLE_OPTIONS = ['getter', 'setter'];
+    // Opciones con atributos HTML: en modo untrusted solo se aceptan los nombres de SAFE_HTML_ATTRIBUTES
+    private const HTML_ATTRIBUTES_OPTIONS = ['attr', 'row_attr', 'label_attr', 'help_attr', 'placeholder_attr'];
+
+    // Atributos HTML permitidos en modo untrusted. Los terminados en "-" son prefijos
+    public const SAFE_HTML_ATTRIBUTES = [
+        'class', 'placeholder', 'title', 'rows', 'cols', 'size', 'maxlength', 'minlength', 'min', 'max', 'step',
+        'pattern', 'autocomplete', 'autofocus', 'inputmode', 'spellcheck', 'readonly', 'dir', 'lang', 'aria-',
+    ];
 
     // Opciones bloqueadas en modo untrusted: escriben en el modelo, instancian clases, cambian el tipo
     // de los hijos o renderizan HTML sin escapar
@@ -43,16 +53,20 @@ final class FormGenerator implements FormGeneratorInterface
     /** @var list<string> */
     private readonly array $allowedOptions;
 
+    /** @var list<string> */
+    private readonly array $allowedHtmlAttributes;
+
     private readonly ConstraintFactory $constraintFactory;
 
     private readonly AsciiSlugger $slugger;
 
     /**
-     * @param array<string, array{class?: ?string, default_options?: array<string, mixed>}> $types              custom aliases or overrides of the built-in ones
-     * @param list<string>                                                                  $allowedClasses     if not empty, the only FQCN form types allowed in the "type" key (in untrusted mode, always)
-     * @param bool                                                                          $untrusted          the configuration comes from untrusted users: dangerous options and constraints are blocked
-     * @param list<string>                                                                  $allowedOptions     options of UNTRUSTED_BLOCKED_OPTIONS allowed anyway in untrusted mode
-     * @param list<string>                                                                  $allowedConstraints constraints allowed anyway in untrusted mode (only used if $constraintFactory is null)
+     * @param array<string, array{class?: ?string, default_options?: array<string, mixed>}> $types                 custom aliases or overrides of the built-in ones
+     * @param list<string>                                                                  $allowedClasses        if not empty, the only FQCN form types allowed in the "type" key (in untrusted mode, always)
+     * @param bool                                                                          $untrusted             the configuration comes from untrusted users: dangerous options and constraints are blocked
+     * @param list<string>                                                                  $allowedOptions        options of UNTRUSTED_BLOCKED_OPTIONS allowed anyway in untrusted mode
+     * @param list<string>                                                                  $allowedConstraints    constraints allowed anyway in untrusted mode (only if $constraintFactory is null)
+     * @param list<string>                                                                  $allowedHtmlAttributes HTML attributes (or prefixes ending with "-") allowed anyway in untrusted mode
      */
     public function __construct(
         private readonly FormFactoryInterface $formFactory,
@@ -62,10 +76,17 @@ final class FormGenerator implements FormGeneratorInterface
         private readonly bool $untrusted = false,
         array $allowedOptions = [],
         array $allowedConstraints = [],
+        array $allowedHtmlAttributes = [],
     ) {
         $this->types = $this->mergeTypes(SupportedTypes::SUPPORTED_TYPES, $types);
         $this->allowedClasses = array_map(static fn (string $class): string => ltrim($class, '\\'), $allowedClasses);
         $this->allowedOptions = $allowedOptions;
+        $this->allowedHtmlAttributes = array_map('strtolower', array_merge(self::SAFE_HTML_ATTRIBUTES, $allowedHtmlAttributes));
+
+        if ($constraintFactory && $allowedConstraints) {
+            throw new InvalidConfigurationException('The $allowedConstraints argument is ignored when a ConstraintFactory is given: pass them to the ConstraintFactory.');
+        }
+
         $this->constraintFactory = $constraintFactory ?? new ConstraintFactory($untrusted, $allowedConstraints);
         $this->slugger = new AsciiSlugger();
 
@@ -76,24 +97,53 @@ final class FormGenerator implements FormGeneratorInterface
 
     public function createFormFromYaml(string $formConfigYaml, array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null, ?string $formName = null): FormInterface
     {
-        try {
-            $formConfig = Yaml::parse($formConfigYaml);
-        } catch (ParseException $e) {
-            throw new InvalidConfigurationException(sprintf('Invalid YAML form configuration: %s', $e->getMessage()), 0, $e);
-        }
-
-        return $this->createForm($this->ensureArray($formConfig, 'YAML'), $formOptions, $data, $baseFormTypeClass, $groupName, $formName);
+        return $this->createForm($this->parseConfig($formConfigYaml, 'yaml'), $formOptions, $data, $baseFormTypeClass, $groupName, $formName);
     }
 
     public function createFormFromJson(string $formConfigJson, array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null, ?string $formName = null): FormInterface
     {
+        return $this->createForm($this->parseConfig($formConfigJson, 'json'), $formOptions, $data, $baseFormTypeClass, $groupName, $formName);
+    }
+
+    /**
+     * Type aliases (built-in and custom) with their form type and default options.
+     *
+     * @return array<string, array{class: string, default_options: array<string, mixed>}>
+     */
+    public function getTypes(): array
+    {
+        return $this->types;
+    }
+
+    public function validateConfig(array|string $formConfig, string $format = 'yaml', array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null): array
+    {
         try {
-            $formConfig = json_decode($formConfigJson, true, 512, \JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
-            throw new InvalidConfigurationException(sprintf('Invalid JSON form configuration: %s', $e->getMessage()), 0, $e);
+            $formConfig = \is_string($formConfig) ? $this->parseConfig($formConfig, $format) : $formConfig;
+        } catch (ExceptionInterface $e) {
+            return ['' => $e->getMessage()];
         }
 
-        return $this->createForm($this->ensureArray($formConfig, 'JSON'), $formOptions, $data, $baseFormTypeClass, $groupName, $formName);
+        $errors = [];
+
+        // Cada campo por separado, para informar todos los errores y no solo el primero
+        foreach ($formConfig as $inputName => $inputConfig) {
+            $error = $this->tryToCreateForm([$inputName => $inputConfig], $formOptions, $data, $baseFormTypeClass, $groupName);
+
+            if (null !== $error) {
+                $errors[(string) $inputName] = $error;
+            }
+        }
+
+        // Errores entre campos, como colisiones con grupos
+        if (!$errors) {
+            $error = $this->tryToCreateForm($formConfig, $formOptions, $data, $baseFormTypeClass, $groupName);
+
+            if (null !== $error) {
+                $errors[''] = $error;
+            }
+        }
+
+        return $errors;
     }
 
     public function createForm(array $formConfig, array $formOptions = [], mixed $data = null, ?string $baseFormTypeClass = null, ?string $groupName = null, ?string $formName = null): FormInterface
@@ -133,7 +183,6 @@ final class FormGenerator implements FormGeneratorInterface
             $inputConfig = $this->normalizeInputConfig($inputName, $inputConfig);
             $typeConfig = $this->resolveType($inputConfig['type']);
 
-            $this->assertNoCallableOptions($inputName, $inputConfig['options']);
             $this->assertAllowedOptions($inputName, $inputConfig['options']);
 
             // Se compilan las opciones default con las definidas
@@ -164,6 +213,8 @@ final class FormGenerator implements FormGeneratorInterface
             }
 
             $parentBuilder->add($inputName, $typeConfig['class'], $inputOptions);
+
+            $this->assertNoCallableStrings($inputName, $parentBuilder->get($inputName), $inputConfig['options']);
         }
 
         return $builder;
@@ -192,6 +243,45 @@ final class FormGenerator implements FormGeneratorInterface
         }
 
         return $builtInTypes;
+    }
+
+    /**
+     * @return array<string|int, mixed>
+     */
+    private function parseConfig(string $formConfig, string $format): array
+    {
+        if ('yaml' === $format) {
+            try {
+                return $this->ensureArray(Yaml::parse($formConfig), 'YAML');
+            } catch (ParseException $e) {
+                throw new InvalidConfigurationException(sprintf('Invalid YAML form configuration: %s', $e->getMessage()), 0, $e);
+            }
+        }
+
+        if ('json' === $format) {
+            try {
+                return $this->ensureArray(json_decode($formConfig, true, 512, \JSON_THROW_ON_ERROR), 'JSON');
+            } catch (\JsonException $e) {
+                throw new InvalidConfigurationException(sprintf('Invalid JSON form configuration: %s', $e->getMessage()), 0, $e);
+            }
+        }
+
+        throw new InvalidConfigurationException(sprintf('Unknown form configuration format "%s". Use "yaml" or "json".', $format));
+    }
+
+    /**
+     * @param array<string|int, mixed> $formConfig
+     * @param array<string, mixed>     $formOptions
+     */
+    private function tryToCreateForm(array $formConfig, array $formOptions, mixed $data, ?string $baseFormTypeClass, ?string $groupName): ?string
+    {
+        try {
+            $this->createForm($formConfig, $formOptions, $data, $baseFormTypeClass, $groupName);
+        } catch (ExceptionInterface|FormExceptionInterface|OptionsResolverExceptionInterface $e) {
+            return $e->getMessage();
+        }
+
+        return null;
     }
 
     /**
@@ -322,17 +412,39 @@ final class FormGenerator implements FormGeneratorInterface
 
     /**
      * Por seguridad, los callables solo se aceptan como Closure (definidos en PHP, no en YAML/JSON).
+     * Se rechazan los strings y arrays en las opciones que Symfony acepta como callables, salvo que
+     * la opción también acepte un string (p. ej. choice_label, que lo usa como property path).
      *
      * @param array<string, mixed> $options
      */
-    private function assertNoCallableOptions(string $inputName, array $options): void
+    private function assertNoCallableStrings(string $inputName, FormBuilderInterface $builder, array $options): void
     {
-        foreach ($options as $option => $value) {
-            $isArrayCallable = \in_array($option, self::ARRAY_CALLABLE_OPTIONS, true) && \is_array($value) && \is_callable($value);
-            $isCallable = \in_array($option, self::CALLABLE_OPTIONS, true) && null !== $value && !$value instanceof \Closure;
+        $introspector = new OptionsResolverIntrospector($builder->getType()->getOptionsResolver());
 
-            if ($isArrayCallable || $isCallable) {
-                throw new InvalidConfigurationException(sprintf('The option "%s" of the field "%s" only accepts a callable as a \Closure.', $option, $inputName));
+        foreach ($options as $option => $value) {
+            if (!\is_string($value) && !\is_array($value)) {
+                continue;
+            }
+
+            if (\in_array($option, self::UNTYPED_ARRAY_CALLABLE_OPTIONS, true) && \is_array($value) && \is_callable($value)) {
+                throw new InvalidConfigurationException(sprintf('The option "%s" of the field "%s" only accepts a callable as a \\Closure.', $option, $inputName));
+            }
+
+            try {
+                $allowedTypes = $introspector->getAllowedTypes((string) $option);
+            } catch (OptionsResolverExceptionInterface) {
+                // Opción sin tipos declarados
+                continue;
+            }
+
+            if (!array_intersect($allowedTypes, ['callable', 'Closure', '\\Closure'])) {
+                continue;
+            }
+
+            $isData = \is_string($value) ? \in_array('string', $allowedTypes, true) : !\is_callable($value);
+
+            if (!$isData) {
+                throw new InvalidConfigurationException(sprintf('The option "%s" of the field "%s" only accepts a callable as a \\Closure.', $option, $inputName));
             }
         }
     }
@@ -351,6 +463,57 @@ final class FormGenerator implements FormGeneratorInterface
         if ($blockedOptions) {
             throw new InvalidConfigurationException(sprintf('The option(s) "%s" of the field "%s" are not allowed in untrusted mode.', implode('", "', $blockedOptions), $inputName));
         }
+
+        foreach (self::HTML_ATTRIBUTES_OPTIONS as $option) {
+            if (isset($options[$option])) {
+                $this->assertSafeHtmlAttributes($inputName, $option, $options[$option]);
+            }
+        }
+
+        // choice_attr: atributos por opción del choice
+        if (isset($options['choice_attr'])) {
+            if (!\is_array($options['choice_attr'])) {
+                throw new InvalidConfigurationException(sprintf('In untrusted mode the option "choice_attr" of the field "%s" must be an array of attributes by choice.', $inputName));
+            }
+
+            foreach ($options['choice_attr'] as $attributes) {
+                $this->assertSafeHtmlAttributes($inputName, 'choice_attr', $attributes);
+            }
+        }
+    }
+
+    /**
+     * El escape de Twig protege los valores de los atributos, no sus nombres: en modo untrusted
+     * solo se aceptan nombres conocidos (sin manejadores de eventos como "onclick" ni "style").
+     */
+    private function assertSafeHtmlAttributes(string $inputName, string $option, mixed $attributes): void
+    {
+        if (!\is_array($attributes)) {
+            throw new InvalidConfigurationException(sprintf('The option "%s" of the field "%s" must be an array of HTML attributes.', $option, $inputName));
+        }
+
+        foreach ($attributes as $name => $value) {
+            if (!$this->isSafeHtmlAttribute((string) $name) || (null !== $value && !\is_scalar($value))) {
+                throw new InvalidConfigurationException(sprintf('The HTML attribute "%s" in the option "%s" of the field "%s" is not allowed in untrusted mode.', $name, $option, $inputName));
+            }
+        }
+    }
+
+    private function isSafeHtmlAttribute(string $name): bool
+    {
+        $name = strtolower($name);
+
+        if (!preg_match('/^[a-z][a-z0-9_.:-]*$/', $name)) {
+            return false;
+        }
+
+        foreach ($this->allowedHtmlAttributes as $allowed) {
+            if ($name === $allowed || (str_ends_with($allowed, '-') && str_starts_with($name, $allowed))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

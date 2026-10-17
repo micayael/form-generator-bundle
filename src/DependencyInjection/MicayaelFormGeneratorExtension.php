@@ -5,6 +5,7 @@ namespace Micayael\Bundle\FormGeneratorBundle\DependencyInjection;
 use Micayael\Bundle\FormGeneratorBundle\Service\ConstraintFactory;
 use Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\Console\Application;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
@@ -16,6 +17,11 @@ class MicayaelFormGeneratorExtension extends Extension
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('services.yaml');
 
+        // Los comandos solo se registran si la app usa symfony/console
+        if (class_exists(Application::class)) {
+            $loader->load('commands.yaml');
+        }
+
         $configuration = $this->getConfiguration($configs, $container);
         $config = $this->processConfiguration($configuration, $configs);
 
@@ -26,6 +32,7 @@ class MicayaelFormGeneratorExtension extends Extension
             ->setArgument('$allowedClasses', $config['allowed_classes'])
             ->setArgument('$untrusted', $config['untrusted'])
             ->setArgument('$allowedOptions', $config['allowed_options'])
+            ->setArgument('$allowedHtmlAttributes', $config['allowed_html_attributes'])
         ;
 
         $container->getDefinition(ConstraintFactory::class)

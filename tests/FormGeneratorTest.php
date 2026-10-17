@@ -11,6 +11,7 @@ use Micayael\Bundle\FormGeneratorBundle\Tests\Form\Type\DemoFormType;
 use Micayael\Bundle\FormGeneratorBundle\Tests\Form\Type\FixedFieldsType;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -271,6 +272,9 @@ final class FormGeneratorTest extends KernelTestCase
             'callable callback' => fn () => $this->formGenerator->createForm(['a' => ['options' => ['constraints' => ['callback' => ['callback' => [self::class, 'probe']]]]]]),
             'nested callable' => fn () => $this->formGenerator->createForm(['a' => ['options' => ['constraints' => ['all' => ['constraints' => ['not_blank' => ['normalizer' => 'trim']]]]]]]),
             'callable validation_groups' => fn () => $this->formGenerator->createForm(['a' => ['options' => ['validation_groups' => [self::class, 'probe']]]]),
+            'callable is_empty_callback' => fn () => $this->formGenerator->createForm(['a' => ['options' => ['is_empty_callback' => 'trim']]]),
+            'callable delete_empty' => fn () => $this->formGenerator->createForm(['a' => ['type' => CollectionType::class, 'options' => ['delete_empty' => 'trim']]]),
+            'callable getter' => fn () => $this->formGenerator->createForm(['a' => ['options' => ['getter' => 'trim']]]),
             'callable choice_label' => fn () => $this->formGenerator->createForm(['a' => ['type' => 'choice', 'options' => ['choice_label' => [self::class, 'probe']]]]),
             'group after field' => fn () => $this->formGenerator->createForm(['g_default' => null, 'a' => ['extras' => ['group' => 'g']]]),
             'field after group' => fn () => $this->formGenerator->createForm(['a' => ['extras' => ['group' => 'g']], 'g_default' => null]),
@@ -343,6 +347,55 @@ final class FormGeneratorTest extends KernelTestCase
         ]);
 
         $this->assertSame('key', $form->get('status')->getConfig()->getOption('choice_label'));
+    }
+
+    public function testValidateConfig(): void
+    {
+        $this->assertSame([], $this->formGenerator->validateConfig($this->getFormConfigAsYaml()));
+        $this->assertSame([], $this->formGenerator->validateConfig($this->getFormConfigAsJson(), 'json'));
+        $this->assertSame([], $this->formGenerator->validateConfig($this->getFormConfigAsArray()));
+
+        $errors = $this->formGenerator->validateConfig(<<<'YAML'
+            name:
+            age:
+              type: integr
+            email:
+              type: email
+              options:
+                foo: bar
+            city:
+              option: {}
+            YAML);
+
+        $this->assertSame(['age', 'email', 'city'], array_keys($errors));
+        $this->assertStringContainsString('"integr" is not supported', $errors['age']);
+        $this->assertStringContainsString('"foo"', $errors['email']);
+        $this->assertStringContainsString('Unknown key(s) "option"', $errors['city']);
+    }
+
+    public function testValidateConfigGlobalErrors(): void
+    {
+        $this->assertArrayHasKey('', $this->formGenerator->validateConfig('{', 'json'));
+        $this->assertArrayHasKey('', $this->formGenerator->validateConfig('a:', 'xml'));
+
+        $errors = $this->formGenerator->validateConfig(['g_default' => null, 'a' => ['extras' => ['group' => 'g']]]);
+        $this->assertSame([''], array_keys($errors));
+        $this->assertStringContainsString('collides', $errors['']);
+    }
+
+    public function testAllowedConstraintsNeedTheDefaultConstraintFactory(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+
+        new FormGenerator($this->getFormFactory(), constraintFactory: new ConstraintFactory(), allowedConstraints: ['expression']);
+    }
+
+    public function testGetTypes(): void
+    {
+        $types = $this->formGenerator->getTypes();
+
+        $this->assertSame(TextType::class, $types['text']['class']);
+        $this->assertSame(['Yes' => true, 'No' => false], $types['boolean_choice']['default_options']['choices']);
     }
 
     public static function probe(): void

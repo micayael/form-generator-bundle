@@ -59,6 +59,60 @@ final class UntrustedModeTest extends KernelTestCase
         }
     }
 
+    public function testHtmlAttributes(): void
+    {
+        $blocked = [
+            ['attr' => ['onfocus' => 'alert(1)']],
+            ['attr' => ['OnClick' => 'x']],
+            ['row_attr' => ['style' => 'x']],
+            ['label_attr' => ['formaction' => 'x']],
+            ['attr' => ['data-controller' => 'x']],
+            ['attr' => ['class' => ['x']]],
+            ['attr' => 'x'],
+        ];
+
+        foreach ($blocked as $options) {
+            try {
+                $this->createGenerator()->createForm(['a' => ['options' => $options]]);
+                $this->fail(sprintf('The options %s should be blocked.', json_encode($options)));
+            } catch (InvalidConfigurationException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+
+        try {
+            $this->createGenerator()->createForm(['a' => ['type' => 'choice', 'options' => ['choices' => ['A' => 'a'], 'choice_attr' => ['A' => ['onclick' => 'x']]]]]);
+            $this->fail('The choice_attr should be blocked.');
+        } catch (InvalidConfigurationException) {
+            $this->addToAssertionCount(1);
+        }
+
+        $form = $this->createGenerator()->createForm([
+            'a' => ['options' => ['attr' => ['class' => 'big', 'placeholder' => 'Name', 'aria-label' => 'Name', 'maxlength' => 10]]],
+        ]);
+        $this->assertSame('big', $form->get('a')->getConfig()->getOption('attr')['class']);
+
+        $form = $this->createGenerator(allowedHtmlAttributes: ['data-'])->createForm([
+            'a' => ['options' => ['attr' => ['data-mask' => '999']]],
+        ]);
+        $this->assertSame('999', $form->get('a')->getConfig()->getOption('attr')['data-mask']);
+    }
+
+    public function testConstraintPropertyPathsAreBlocked(): void
+    {
+        foreach (['equal_to' => ['propertyPath' => 'parent.data.secret'], 'range' => ['minPropertyPath' => 'parent.data.min']] as $name => $options) {
+            try {
+                $this->createGenerator()->createForm(['a' => ['options' => ['constraints' => [$name => $options]]]]);
+                $this->fail(sprintf('The constraint "%s" should be blocked.', $name));
+            } catch (InvalidConfigurationException $e) {
+                $this->assertStringContainsString('not allowed in untrusted mode', $e->getMessage());
+            }
+        }
+
+        $form = $this->createGenerator()->createForm(['a' => ['options' => ['constraints' => ['equal_to' => ['value' => 'x']]]]]);
+        $this->assertTrue($form->has('a'));
+    }
+
     public function testAllowedOptions(): void
     {
         $form = $this->createGenerator(allowedOptions: ['label_html'])->createForm([
@@ -161,8 +215,9 @@ final class UntrustedModeTest extends KernelTestCase
      * @param list<string> $allowedClasses
      * @param list<string> $allowedOptions
      * @param list<string> $allowedConstraints
+     * @param list<string> $allowedHtmlAttributes
      */
-    private function createGenerator(array $allowedClasses = [], array $allowedOptions = [], array $allowedConstraints = []): FormGenerator
+    private function createGenerator(array $allowedClasses = [], array $allowedOptions = [], array $allowedConstraints = [], array $allowedHtmlAttributes = []): FormGenerator
     {
         return new FormGenerator(
             $this->getFormFactory(),
@@ -170,6 +225,7 @@ final class UntrustedModeTest extends KernelTestCase
             untrusted: true,
             allowedOptions: $allowedOptions,
             allowedConstraints: $allowedConstraints,
+            allowedHtmlAttributes: $allowedHtmlAttributes,
         );
     }
 

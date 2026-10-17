@@ -22,6 +22,7 @@ final class ConfigurationTest extends TestCase
             'untrusted' => false,
             'allowed_options' => [],
             'allowed_constraints' => [],
+            'allowed_html_attributes' => [],
         ], $config);
     }
 
@@ -51,6 +52,7 @@ final class ConfigurationTest extends TestCase
             'untrusted' => true,
             'allowed_options' => ['label_html'],
             'allowed_constraints' => ['expression'],
+            'allowed_html_attributes' => ['data-'],
         ]], $container);
 
         $formGenerator = $container->getDefinition(FormGenerator::class);
@@ -58,6 +60,7 @@ final class ConfigurationTest extends TestCase
 
         $this->assertTrue($formGenerator->getArgument('$untrusted'));
         $this->assertSame(['label_html'], $formGenerator->getArgument('$allowedOptions'));
+        $this->assertSame(['data-'], $formGenerator->getArgument('$allowedHtmlAttributes'));
         $this->assertTrue($constraintFactory->getArgument('$untrusted'));
         $this->assertSame(['expression'], $constraintFactory->getArgument('$allowedConstraints'));
     }

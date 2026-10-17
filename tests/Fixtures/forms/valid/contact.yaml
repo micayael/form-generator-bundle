@@ -1,0 +1,8 @@
+name:
+email:
+  type: email
+message:
+  type: textarea
+  options:
+    constraints:
+      length: { max: 500 }

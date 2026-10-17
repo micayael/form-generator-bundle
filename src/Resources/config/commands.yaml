@@ -1,0 +1,9 @@
+services:
+
+  Micayael\Bundle\FormGeneratorBundle\Command\ValidateConfigCommand:
+    arguments: ['@Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator']
+    tags: [{ name: console.command, command: 'micayael:form-generator:validate' }]
+
+  Micayael\Bundle\FormGeneratorBundle\Command\DebugCommand:
+    arguments: ['@Micayael\Bundle\FormGeneratorBundle\Service\FormGenerator', '%micayael_form_generator_bundle_config%']
+    tags: [{ name: console.command, command: 'micayael:form-generator:debug' }]

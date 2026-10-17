@@ -23,6 +23,8 @@ custom fields per customer, etc.
 - [Bundle configuration](#bundle-configuration)
 - [Using it without the bundle](#using-it-without-the-bundle)
 - [Error handling](#error-handling)
+- [Validating configurations](#validating-configurations)
+- [Console commands](#console-commands)
 - [Security](#security)
 - [Upgrading from 1.x](#upgrading-from-1x)
 - [Development](#development)
@@ -200,6 +202,7 @@ Methods and arguments
 | `createFormFromJson(string $formConfigJson, ...)` | `FormInterface`    |
 | `createFormFromYaml(string $formConfigYaml, ...)` | `FormInterface`    |
 | `createFormBuilder(array $formConfig, ...)`   | `FormBuilderInterface` |
+| `validateConfig(array\|string $formConfig, ...)` | errors by field (see [Validating configurations](#validating-configurations)) |
 
 All of them accept the same optional arguments. Named arguments are recommended:
 
@@ -338,7 +341,7 @@ Built-in types
 | `time`           | TimeType       | `not_blank`, `time`; `widget: single_text`, `input: string`, `with_seconds: false` |
 | `datetime`       | DateTimeType   | `not_blank`, `datetime`; `widget: single_text`, `input: string`, `with_seconds: false` |
 | `boolean`        | CheckboxType   | `type: boolean`; `required: false`                    |
-| `boolean_choice` | ChoiceType     | `type: boolean`; `required: false`, choices `Si`/`No` |
+| `boolean_choice` | ChoiceType     | `type: boolean`; `required: false`, choices `Yes`/`No` |
 
 Your options are merged over the defaults:
 
@@ -533,6 +536,7 @@ micayael_form_generator:
   untrusted: false
   allowed_options: []
   allowed_constraints: []
+  allowed_html_attributes: []
 ~~~
 
 Using it without the bundle
@@ -587,7 +591,47 @@ try {
 }
 ~~~
 
-To validate a configuration when it is saved (e.g. in an admin panel), create the form and catch the exception.
+Validating configurations
+-------------------------
+
+`validateConfig()` checks a configuration without throwing, e.g. before saving it in an admin panel or in
+an API. It returns the error messages by field name (`""` for errors of the whole configuration, like invalid
+JSON/YAML), or an empty array if it is valid. It applies the same rules as the `createForm*()` methods
+(aliases, constraints, Symfony form options and the untrusted mode), so pass the same arguments you will use
+to create the form:
+
+~~~php
+// $format: "yaml" or "json" when the configuration is a string (ignored for arrays)
+$errors = $this->formGenerator->validateConfig($request->getContent(), 'json', baseFormTypeClass: ProductType::class, groupName: 'attributes');
+
+if ($errors) {
+    return $this->json(['errors' => $errors], 422);
+}
+// ['age' => 'Form type "integr" is not supported. ...', 'email' => 'The option "foo" does not exist. ...']
+~~~
+
+Console commands
+----------------
+
+When `symfony/console` is installed, the bundle registers two commands.
+
+`micayael:form-generator:validate` validates `.yaml`, `.yml` and `.json` files (or directories), for example in CI:
+
+~~~
+$ php bin/console micayael:form-generator:validate config/forms
+[OK] config/forms/contact.yaml
+[ERROR] config/forms/survey.json
+  - age: Form type "integr" is not supported. ...
+
+ [ERROR] 1 of 2 file(s) are not valid.
+~~~
+
+Use `--base-type` and `--group` to validate them like the `$baseFormTypeClass` and `$groupName` arguments.
+The command returns `1` if any file is invalid.
+
+`micayael:form-generator:debug` lists the type aliases (built-in and custom) with their form type and
+default options, and the security configuration (untrusted mode and allowed classes, options, constraints
+and HTML attributes).
 
 Security
 --------
@@ -601,8 +645,9 @@ form type, option and constraint can be used. Even so, to avoid running arbitrar
 callables are only accepted as `\Closure` (that is, from PHP code):
 
 - constraint options typed as callables (`normalizer`, `callback`, ...)
-- form options that Symfony calls when they receive an array callable (`validation_groups`, `choice_label`,
-  `choice_value`, `group_by`, `preferred_choices`, ...) and `getter` / `setter`
+- form options that Symfony accepts as callables (`is_empty_callback`, `getter`, `setter`, `delete_empty`,
+  `validation_groups`, ...). Options where Symfony uses a string as a property path (`choice_label`,
+  `choice_value`, `group_by`, ...) still accept strings, but not array callables
 
 ~~~yaml
 # throws an exception: "normalizer" only accepts a \Closure
@@ -620,7 +665,8 @@ enable the untrusted mode. Without it, a malicious configuration could, for exam
 - list the data of any Doctrine entity in the HTML (`type: EntityType`, `class: App\Entity\User`, `choice_label: password`)
 - change properties of your objects that are not in the form (`property_path: roles`)
 - call methods of your objects (`expression` constraint)
-- inject HTML / JavaScript (`label_html: true`)
+- inject HTML / JavaScript (`label_html: true`, or an `onfocus` attribute in `attr`)
+- show other data of the validated object in error messages (`equal_to` with `propertyPath`)
 
 ~~~yaml
 # config/packages/micayael_form_generator.yaml
@@ -637,6 +683,9 @@ micayael_form_generator:
   # constraints allowed anyway (name or FQCN), e.g. your own constraints
   allowed_constraints:
     - App\Validator\ValidTaxId
+
+  # HTML attributes allowed anyway, besides the safe ones. Values ending with "-" are prefixes
+  allowed_html_attributes: ['data-mask']
 ~~~
 
 In untrusted mode:
@@ -645,7 +694,8 @@ In untrusted mode:
 |------|--------|
 | Form types | only the aliases (built-in and the ones in `types`) and the classes in `allowed_classes` |
 | Blocked options | `property_path`, `mapped`, `inherit_data`, `by_reference`, `data`, `data_class`, `empty_data`, `getter`, `setter`, `entry_type`, `entry_options`, `prototype_options`, `label_html`, `help_html`, `block_name`, `block_prefix` |
-| Constraints | only the Symfony ones, except `expression`, `when` and `callback`, plus `allowed_constraints` (also inside nested constraints) |
+| Constraints | only the Symfony ones, except `expression`, `when` and `callback`, plus `allowed_constraints` (also inside nested constraints). The `propertyPath`, `minPropertyPath` and `maxPropertyPath` options are blocked |
+| HTML attributes | in `attr`, `row_attr`, `label_attr`, `help_attr`, `placeholder_attr` and `choice_attr`, only `class`, `placeholder`, `title`, `rows`, `cols`, `size`, `maxlength`, `minlength`, `min`, `max`, `step`, `pattern`, `autocomplete`, `autofocus`, `inputmode`, `spellcheck`, `readonly`, `dir`, `lang`, `aria-*` and `allowed_html_attributes`, with scalar values. Twig escapes the values, not the names, so event handlers (`onclick`, ...) or `style` must not be allowed |
 | Objects | the fields can't be added to a form with a `data_class`, because their names would write properties of the object: use `$groupName` to store them in an array property |
 | Base form type | the fields can't replace the fields of `$baseFormTypeClass` |
 
@@ -654,8 +704,11 @@ In untrusted mode:
 $form = $this->formGenerator->createFormFromJson($userConfig, data: $product, baseFormTypeClass: ProductType::class, groupName: 'attributes');
 ~~~
 
-Without the bundle, pass `untrusted: true` (and `allowedOptions` / `allowedConstraints`) to the `FormGenerator`
-constructor.
+Without the bundle, pass `untrusted: true` (and `allowedOptions`, `allowedConstraints`, `allowedHtmlAttributes`)
+to the `FormGenerator` constructor.
+
+Be careful with `allowed_html_attributes: ['data-']`: `data-controller` and `data-action` connect
+Stimulus controllers of your app.
 
 The configuration is still user input: the texts (labels, help, placeholders) are escaped by Twig, but review
 your templates if you render them in other ways, and limit the size of the configurations you accept.

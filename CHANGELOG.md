@@ -30,6 +30,12 @@
 - Untrusted mode (`untrusted`, `allowed_options`, `allowed_constraints`) for configurations written by users:
   blocks dangerous options (`property_path`, `data_class`, `label_html`, ...), the `expression`, `when` and
   `callback` constraints, non-Symfony constraints, FQCN types not in `allowed_classes` and fields mapped to objects.
+- In untrusted mode, HTML attributes (`attr`, `row_attr`, `label_attr`, `help_attr`, `placeholder_attr`,
+  `choice_attr`) only accept safe names plus `allowed_html_attributes`, and the `propertyPath`,
+  `minPropertyPath` and `maxPropertyPath` constraint options are blocked.
+- `validateConfig()` returns the errors of a configuration by field, without throwing.
+- Console commands `micayael:form-generator:validate` and `micayael:form-generator:debug` (with `symfony/console`).
+- `FormGenerator::getTypes()` returns the type aliases with their form type and default options.
 - All bundle exceptions implement `Micayael\Bundle\FormGeneratorBundle\Exception\ExceptionInterface`.
 
 ### Changed (BC breaks)
@@ -39,8 +45,12 @@
   and `input: string`, so their data is a string instead of a `\DateTime`. Forms that validated before may fail now.
 - With `$groupName`, the `extras.group` / `extras.position` groups are created inside the embedded form
   (they were ignored before).
-- Callables in the configuration (`normalizer`, `callback`, array callables in `validation_groups`,
-  `choice_label`, ...) are only accepted as `\Closure`.
+- Callables in the configuration are only accepted as `\Closure`: constraint options like `normalizer` or
+  `callback`, and every form option that Symfony accepts as a callable (`is_empty_callback`, `getter`,
+  `setter`, `delete_empty`, array callables in `validation_groups`, `choice_label`, ...).
+- The default choices of `boolean_choice` are `Yes` / `No` (they were `Si` / `No`).
+- Passing `$allowedConstraints` together with a `ConstraintFactory` to `FormGenerator` throws an exception
+  (it was ignored).
 - A field and a group with the same name throw an exception (the field used to replace the group).
 - `createForm*()` always return a `FormInterface`; an empty configuration returns an empty form instead of `null`.
 - Grouped fields (`extras.group` / `extras.position`) use `inherit_data`, so their data stays in the parent form.
