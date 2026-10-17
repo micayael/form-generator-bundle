@@ -260,6 +260,11 @@ final class ConstraintFactory
         $directory = \dirname((string) (new \ReflectionClass(NotBlank::class))->getFileName());
 
         foreach (glob($directory.'/*.php') ?: [] as $file) {
+            // Los traits no son constraints y cargarlos puede emitir deprecaciones (p. ej. NumberConstraintTrait en 5.4)
+            if (str_ends_with($file, 'Trait.php')) {
+                continue;
+            }
+
             $class = self::CONSTRAINTS_NAMESPACE.basename($file, '.php');
 
             try {
